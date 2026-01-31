@@ -1,0 +1,227 @@
+import SwiftUI
+import AppKit
+
+@main
+struct TabzillaApp {
+    static func main() {
+        // Check if running with CLI arguments
+        let args = CommandLine.arguments
+        if args.count > 1 && !args[1].starts(with: "-NS") && !args[1].starts(with: "-Apple") {
+            // CLI mode
+            CLI.main()
+        } else {
+            // GUI/Daemon mode
+            let app = NSApplication.shared
+            let delegate = AppDelegate()
+            app.delegate = delegate
+            app.run()
+        }
+    }
+}
+
+class AppDelegate: NSObject, NSApplicationDelegate {
+    private var configManager: ConfigurationManager?
+    private var ruleEngine: RuleEngine?
+    private var executor: Executor?
+    private var fileWatcher: FileWatcher?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Hide dock icon (LSUIElement behavior)
+        NSApp.setActivationPolicy(.accessory)
+
+        // Register for URL events
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleGetURLEvent(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
+
+        // Set up signal handlers for CLI commands
+        setupSignalHandlers()
+
+        // Load configuration
+        loadConfiguration()
+
+        // Write PID file for CLI commands
+        writePIDFile()
+
+        Logger.shared.log("Tabzilla daemon started")
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        removePIDFile()
+        Logger.shared.log("Tabzilla daemon stopped")
+    }
+
+    private func loadConfiguration() {
+        do {
+            let config = try ConfigurationManager.loadConfig()
+            configManager = ConfigurationManager(config: config)
+            ruleEngine = RuleEngine(config: config)
+            executor = Executor()
+
+            // Configure logger from config
+            if let logging = config.logging {
+                Logger.shared.configure(enabled: logging.enabled, path: logging.path)
+            }
+
+            // Set up file watching for config reload
+            if let configPath = ConfigurationManager.findConfigPath() {
+                setupFileWatcher(for: configPath)
+            }
+
+            Logger.shared.log("Configuration loaded successfully")
+        } catch {
+            Logger.shared.log("Failed to load configuration: \(error)")
+            showErrorInBrowser(error)
+        }
+    }
+
+    private func setupFileWatcher(for path: String) {
+        fileWatcher = FileWatcher(path: path) { [weak self] in
+            Logger.shared.log("Config file changed, reloading...")
+            self?.reloadConfiguration()
+        }
+    }
+
+    func reloadConfiguration() {
+        do {
+            let config = try ConfigurationManager.loadConfig()
+            configManager = ConfigurationManager(config: config)
+            ruleEngine = RuleEngine(config: config)
+
+            // Reconfigure logger from config
+            if let logging = config.logging {
+                Logger.shared.configure(enabled: logging.enabled, path: logging.path)
+            }
+
+            Logger.shared.log("Configuration reloaded successfully")
+        } catch {
+            Logger.shared.log("Failed to reload configuration: \(error)")
+        }
+    }
+
+    private func setupSignalHandlers() {
+        // SIGHUP: reload config
+        signal(SIGHUP) { _ in
+            DispatchQueue.main.async {
+                (NSApp.delegate as? AppDelegate)?.reloadConfiguration()
+            }
+        }
+
+        // SIGTERM: graceful shutdown
+        signal(SIGTERM) { _ in
+            DispatchQueue.main.async {
+                NSApp.terminate(nil)
+            }
+        }
+    }
+
+    @objc private func handleGetURLEvent(_ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor) {
+        guard let urlString = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+              let url = URL(string: urlString) else {
+            Logger.shared.log("Failed to parse URL from Apple Event")
+            return
+        }
+
+        // Get source app information
+        let sourceApp = getSourceApp(from: event)
+        let sourceWindowTitle = sourceApp.flatMap { getSourceWindowTitle(for: $0) }
+
+        let request = RouteRequest(
+            url: url,
+            sourceApp: sourceApp,
+            sourceWindowTitle: sourceWindowTitle,
+            timestamp: Date()
+        )
+
+        Logger.shared.log("Received URL: \(url), sourceApp: \(sourceApp ?? "unknown"), sourceWindowTitle: \(sourceWindowTitle ?? "unknown")")
+
+        routeURL(request: request)
+    }
+
+    private func getSourceApp(from event: NSAppleEventDescriptor) -> String? {
+        guard let sourceDescriptor = event.attributeDescriptor(forKeyword: AEKeyword(keyOriginalAddressAttr)) else {
+            return nil
+        }
+
+        // Try to get bundle ID
+        if let bundleIDDescriptor = sourceDescriptor.coerce(toDescriptorType: typeApplicationBundleID) {
+            return bundleIDDescriptor.stringValue
+        }
+
+        return nil
+    }
+
+    private func getSourceWindowTitle(for bundleId: String) -> String? {
+        let script = """
+        tell application id "\(bundleId)"
+            if (count of windows) > 0 then
+                return name of front window
+            end if
+        end tell
+        """
+
+        var error: NSDictionary?
+        if let scriptObject = NSAppleScript(source: script) {
+            let result = scriptObject.executeAndReturnError(&error)
+            if error == nil {
+                return result.stringValue
+            }
+        }
+        return nil
+    }
+
+    private func routeURL(request: RouteRequest) {
+        guard let engine = ruleEngine, let exec = executor else {
+            Logger.shared.log("Rule engine or executor not initialized")
+            openURLInDefaultBrowser(request.url)
+            return
+        }
+
+        let action = engine.route(request: request)
+        Logger.shared.log("Route action: browser=\(action.browser), window=\(action.windowTarget?.name ?? "none")")
+
+        do {
+            try exec.execute(action: action)
+        } catch {
+            Logger.shared.log("Failed to execute action: \(error)")
+            openURLInDefaultBrowser(request.url)
+        }
+    }
+
+    private func openURLInDefaultBrowser(_ url: URL) {
+        NSWorkspace.shared.open(url)
+    }
+
+    private func showErrorInBrowser(_ error: Error) {
+        let errorMessage = error.localizedDescription.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "Unknown error"
+        let errorURL = URL(string: "data:text/html,<h1>Tabzilla Configuration Error</h1><p>\(errorMessage)</p>")!
+        NSWorkspace.shared.open(errorURL)
+    }
+
+    // MARK: - PID File Management
+
+    private var pidFilePath: String {
+        let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let tabzillaDir = supportDir.appendingPathComponent("Tabzilla")
+        return tabzillaDir.appendingPathComponent("tabz.pid").path
+    }
+
+    private func writePIDFile() {
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let pidDir = (pidFilePath as NSString).deletingLastPathComponent
+
+        do {
+            try FileManager.default.createDirectory(atPath: pidDir, withIntermediateDirectories: true)
+            try "\(pid)".write(toFile: pidFilePath, atomically: true, encoding: .utf8)
+        } catch {
+            Logger.shared.log("Failed to write PID file: \(error)")
+        }
+    }
+
+    private func removePIDFile() {
+        try? FileManager.default.removeItem(atPath: pidFilePath)
+    }
+}

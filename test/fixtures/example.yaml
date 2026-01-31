@@ -1,0 +1,17 @@
+version: 1
+
+defaults:
+  browser: com.google.Chrome
+  window: Default
+
+rules:
+  - name: github-prs
+    url: github\.com/.+/pull/\d+
+    window: Code Review
+
+  - name: work-domains
+    url: (?i)corp\.example\.com|jira\.example\.com
+    browser: com.google.Chrome.beta
+    window: Work
+
+  - url: .*
