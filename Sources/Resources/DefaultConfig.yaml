@@ -1,0 +1,44 @@
+# Tabzilla Configuration
+# https://github.com/bdupras/tabzilla
+#
+# This file defines how URLs are routed to browsers and windows.
+# All matching uses ICU regex (NSRegularExpression).
+#
+# Config file search order:
+#   1. ~/.config/tabz/config.yaml
+#   2. ~/Library/Application Support/Tabzilla/config.yaml
+#   3. ~/.tabz.yaml
+
+version: 1
+
+defaults:
+  browser: com.google.Chrome
+  window: Default
+
+rules:
+  # Example: Route work domains to a specific browser and window
+  # - url: (?i)corp\.example\.com|jira\.example\.com
+  #   browser: com.google.Chrome.beta
+  #   window: Work
+
+  # Example: Route based on source app (Slack workspace)
+  # - sourceApp: ^com\.tinyspeck\.slackmacgap$
+  #   sourceWindowTitle: (?i)work
+  #   browser: com.google.Chrome.beta
+  #   window: Work
+
+  # Example: Tab reuse for Google Docs (reuse tab for same document)
+  # - url: docs\.google\.com/document/d/([^/]+)
+  #   useTab: docs\.google\.com/document/d/\1
+
+  # Example: GitHub PRs in dedicated window
+  # - url: github\.com/.+/pull/\d+
+  #   window: Code Review
+
+  # Catch-all rule (uses defaults)
+  - url: .*
+
+# Optional: Enable logging for debugging
+# logging:
+#   enabled: true
+#   path: ~/Library/Logs/Tabzilla/tabz.log

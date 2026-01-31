@@ -1,0 +1,354 @@
+import Foundation
+import ArgumentParser
+
+struct CLI: ParsableCommand {
+    static var configuration = CommandConfiguration(
+        commandName: "tabz",
+        abstract: "URL routing daemon for macOS",
+        version: "1.0.0",
+        subcommands: [Open.self, Test.self, Status.self, Reload.self, Quit.self],
+        defaultSubcommand: nil
+    )
+}
+
+// MARK: - Open Command
+
+extension CLI {
+    struct Open: ParsableCommand {
+        static var configuration = CommandConfiguration(
+            abstract: "Route a URL to a browser based on rules"
+        )
+
+        @Argument(help: "The URL to open")
+        var url: String
+
+        @Option(name: .shortAndLong, help: "Path to config file")
+        var config: String?
+
+        @Option(name: .long, help: "Source app bundle ID")
+        var sourceApp: String?
+
+        @Option(name: .long, help: "Source app window title")
+        var sourceWindowTitle: String?
+
+        @Flag(name: .shortAndLong, help: "Show verbose output")
+        var verbose: Bool = false
+
+        func run() throws {
+            guard let openURL = URL(string: url) else {
+                throw ValidationError("Invalid URL: \(url)")
+            }
+
+            // Load config
+            let loadedConfig: Config
+            let configPath: String?
+            do {
+                if let path = config {
+                    let expandedPath = (path as NSString).expandingTildeInPath
+                    loadedConfig = try ConfigurationManager.loadConfig(from: expandedPath)
+                    configPath = expandedPath
+                } else {
+                    loadedConfig = try ConfigurationManager.loadConfig()
+                    configPath = ConfigurationManager.findConfigPath()
+                }
+            } catch {
+                throw ValidationError("Failed to load config: \(error.localizedDescription)")
+            }
+
+            // Configure logger from config
+            if let logging = loadedConfig.logging {
+                Logger.shared.configure(enabled: logging.enabled, path: logging.path)
+            }
+
+            // Create rule engine and match
+            let engine = RuleEngine(config: loadedConfig)
+            let action = engine.testMatch(
+                url: openURL,
+                sourceApp: sourceApp,
+                sourceWindowTitle: sourceWindowTitle
+            )
+
+            if verbose {
+                print("URL:          \(url)")
+                if let sourceApp = sourceApp {
+                    print("Source App:   \(sourceApp)")
+                }
+                if let sourceWindowTitle = sourceWindowTitle {
+                    print("Source Title: \(sourceWindowTitle)")
+                }
+                print("")
+                print("Matched Rule: \(action.matchedRule ?? "(default)")")
+                print("Browser:      \(action.browser)")
+                if let window = action.windowTarget {
+                    print("Window:       \(window.name)")
+                }
+                if let tab = action.tabAction {
+                    let tabType = tab.navigate ? "useTab" : "focusTab"
+                    print("Tab Action:   \(tabType) pattern=\"\(tab.pattern)\"")
+                }
+                print("Final URL:    \(action.rewrittenURL)")
+                print("Config:       \(configPath ?? "default")")
+                print("")
+            }
+
+            // Execute the action
+            let executor = Executor()
+            do {
+                Logger.shared.log("Opening URL: \(url) -> browser=\(action.browser), window=\(action.windowTarget?.name ?? "none")")
+                try executor.execute(action: action)
+                if verbose {
+                    print("Opened successfully.")
+                }
+            } catch {
+                Logger.shared.log("Failed to open URL: \(error)")
+                throw ValidationError("Failed to open URL: \(error.localizedDescription)")
+            }
+        }
+    }
+}
+
+// MARK: - Test Command
+
+extension CLI {
+    struct Test: ParsableCommand {
+        static var configuration = CommandConfiguration(
+            abstract: "Test which rule matches a URL (dry run)"
+        )
+
+        @Argument(help: "The URL to test")
+        var url: String
+
+        @Option(name: .shortAndLong, help: "Path to config file")
+        var config: String?
+
+        @Option(name: .long, help: "Source app bundle ID")
+        var sourceApp: String?
+
+        @Option(name: .long, help: "Source app window title")
+        var sourceWindowTitle: String?
+
+        @Flag(name: .shortAndLong, help: "Show verbose output")
+        var verbose: Bool = false
+
+        func run() throws {
+            guard let testURL = URL(string: url) else {
+                throw ValidationError("Invalid URL: \(url)")
+            }
+
+            // Load config
+            let loadedConfig: Config
+            let configPath: String?
+            do {
+                if let path = config {
+                    let expandedPath = (path as NSString).expandingTildeInPath
+                    loadedConfig = try ConfigurationManager.loadConfig(from: expandedPath)
+                    configPath = expandedPath
+                } else {
+                    loadedConfig = try ConfigurationManager.loadConfig()
+                    configPath = ConfigurationManager.findConfigPath()
+                }
+            } catch {
+                throw ValidationError("Failed to load config: \(error.localizedDescription)")
+            }
+
+            // Create rule engine and test
+            let engine = RuleEngine(config: loadedConfig)
+            let action = engine.testMatch(
+                url: testURL,
+                sourceApp: sourceApp,
+                sourceWindowTitle: sourceWindowTitle
+            )
+
+            // Print results
+            print("URL:          \(url)")
+            if let sourceApp = sourceApp {
+                print("Source App:   \(sourceApp)")
+            }
+            if let sourceWindowTitle = sourceWindowTitle {
+                print("Source Title: \(sourceWindowTitle)")
+            }
+            print("")
+            print("Result:")
+            print("  Matched Rule: \(action.matchedRule ?? "(default)")")
+            print("  Browser:      \(action.browser)")
+            if let window = action.windowTarget {
+                print("  Window:       \(window.name)")
+            }
+            if let tab = action.tabAction {
+                let tabType = tab.navigate ? "useTab" : "focusTab"
+                print("  Tab Action:   \(tabType) pattern=\"\(tab.pattern)\"")
+            }
+            print("  Final URL:    \(action.rewrittenURL)")
+
+            if verbose {
+                print("")
+                print("Config loaded from: \(configPath ?? "default")")
+                print("Total rules: \(loadedConfig.rules.count)")
+            }
+        }
+    }
+}
+
+// MARK: - Status Command
+
+extension CLI {
+    struct Status: ParsableCommand {
+        static var configuration = CommandConfiguration(
+            abstract: "Show daemon status and configuration"
+        )
+
+        func run() throws {
+            let pid = getDaemonPID()
+            let isRunning = pid.map { isProcessRunning($0) } ?? false
+
+            print("Tabzilla Status")
+            print("─────────────")
+            print("")
+
+            if isRunning, let pid = pid {
+                print("Daemon:  Running (PID \(pid))")
+            } else {
+                print("Daemon:  Not running")
+            }
+
+            if let configPath = ConfigurationManager.findConfigPath() {
+                print("Config:  \(configPath)")
+            } else {
+                print("Config:  Not found (will use defaults)")
+            }
+
+            print("")
+            print("Config search paths (in order):")
+            for path in ConfigurationManager.searchPaths {
+                let exists = FileManager.default.fileExists(atPath: (path as NSString).expandingTildeInPath)
+                let marker = exists ? "✓" : " "
+                print("  \(marker) \(path)")
+            }
+
+            // Try to load and validate config
+            print("")
+            do {
+                let config = try ConfigurationManager.loadConfig()
+                print("Config valid: Yes")
+                print("  Version:  \(config.version)")
+                print("  Rules:    \(config.rules.count)")
+                print("  Defaults:")
+                print("    Browser: \(config.defaults.browser)")
+                print("    Window:  \(config.defaults.window)")
+                if let logging = config.logging {
+                    print("  Logging:")
+                    print("    Enabled: \(logging.enabled)")
+                    if let logPath = logging.path {
+                        let expandedPath = (logPath as NSString).expandingTildeInPath
+                        let exists = FileManager.default.fileExists(atPath: expandedPath)
+                        let marker = exists ? "✓" : " "
+                        print("    Path:    \(marker) \(logPath)")
+                    }
+                }
+            } catch {
+                print("Config valid: No")
+                print("  Error: \(error.localizedDescription)")
+            }
+        }
+
+        private func getDaemonPID() -> pid_t? {
+            let pidPath = getPIDFilePath()
+            guard let pidString = try? String(contentsOfFile: pidPath, encoding: .utf8),
+                  let pid = pid_t(pidString.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+                return nil
+            }
+            return pid
+        }
+
+        private func isProcessRunning(_ pid: pid_t) -> Bool {
+            return kill(pid, 0) == 0
+        }
+    }
+}
+
+// MARK: - Reload Command
+
+extension CLI {
+    struct Reload: ParsableCommand {
+        static var configuration = CommandConfiguration(
+            abstract: "Signal daemon to reload configuration"
+        )
+
+        func run() throws {
+            guard let pid = getDaemonPID() else {
+                throw ValidationError("Daemon is not running (no PID file found)")
+            }
+
+            guard isProcessRunning(pid) else {
+                throw ValidationError("Daemon is not running (PID \(pid) not found)")
+            }
+
+            // Send SIGHUP to reload config
+            if kill(pid, SIGHUP) == 0 {
+                print("Sent reload signal to daemon (PID \(pid))")
+            } else {
+                throw ValidationError("Failed to send signal to daemon: \(String(cString: strerror(errno)))")
+            }
+        }
+
+        private func getDaemonPID() -> pid_t? {
+            let pidPath = getPIDFilePath()
+            guard let pidString = try? String(contentsOfFile: pidPath, encoding: .utf8),
+                  let pid = pid_t(pidString.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+                return nil
+            }
+            return pid
+        }
+
+        private func isProcessRunning(_ pid: pid_t) -> Bool {
+            return kill(pid, 0) == 0
+        }
+    }
+}
+
+// MARK: - Quit Command
+
+extension CLI {
+    struct Quit: ParsableCommand {
+        static var configuration = CommandConfiguration(
+            abstract: "Stop the daemon"
+        )
+
+        func run() throws {
+            guard let pid = getDaemonPID() else {
+                throw ValidationError("Daemon is not running (no PID file found)")
+            }
+
+            guard isProcessRunning(pid) else {
+                throw ValidationError("Daemon is not running (PID \(pid) not found)")
+            }
+
+            // Send SIGTERM for graceful shutdown
+            if kill(pid, SIGTERM) == 0 {
+                print("Sent quit signal to daemon (PID \(pid))")
+            } else {
+                throw ValidationError("Failed to send signal to daemon: \(String(cString: strerror(errno)))")
+            }
+        }
+
+        private func getDaemonPID() -> pid_t? {
+            let pidPath = getPIDFilePath()
+            guard let pidString = try? String(contentsOfFile: pidPath, encoding: .utf8),
+                  let pid = pid_t(pidString.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+                return nil
+            }
+            return pid
+        }
+
+        private func isProcessRunning(_ pid: pid_t) -> Bool {
+            return kill(pid, 0) == 0
+        }
+    }
+}
+
+// MARK: - Shared Helpers
+
+private func getPIDFilePath() -> String {
+    let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+    return supportDir.appendingPathComponent("Tabzilla/tabz.pid").path
+}
