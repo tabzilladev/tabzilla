@@ -34,6 +34,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             forEventClass: AEEventClass(kInternetEventClass),
             andEventID: AEEventID(kAEGetURL)
         )
+
+        // Register for open document events (for local HTML files)
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleOpenDocumentsEvent(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kCoreEventClass),
+            andEventID: AEEventID(kAEOpenDocuments)
+        )
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -142,6 +150,88 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Logger.shared.log("Received URL: \(url), sourceApp: \(sourceApp ?? "unknown"), sourceWindowTitle: \(sourceWindowTitle ?? "unknown")")
 
         routeURL(request: request)
+    }
+
+    @objc private func handleOpenDocumentsEvent(_ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor) {
+        guard let listDescriptor = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject)) else {
+            Logger.shared.log("Failed to get document list from Apple Event")
+            return
+        }
+
+        // Get source app information
+        let sourceApp = getSourceApp(from: event)
+        let sourceWindowTitle = sourceApp.flatMap { getSourceWindowTitle(for: $0) }
+
+        // Iterate through all documents in the list
+        let itemCount = listDescriptor.numberOfItems
+        for i in 1...itemCount {
+            guard let itemDescriptor = listDescriptor.atIndex(i) else {
+                continue
+            }
+
+            // Try to get file URL - documents come as file references
+            var url: URL?
+
+            // Try coercing to file URL
+            if let fileURLDescriptor = itemDescriptor.coerce(toDescriptorType: typeFileURL),
+               let urlString = fileURLDescriptor.stringValue {
+                url = URL(string: urlString)
+            }
+
+            // Fallback: try as alias/bookmark and resolve to path
+            if url == nil {
+                let data = itemDescriptor.data
+                var isStale = false
+                if let bookmarkURL = try? URL(resolvingBookmarkData: data, options: [], relativeTo: nil, bookmarkDataIsStale: &isStale) {
+                    url = bookmarkURL
+                }
+            }
+
+            guard let fileURL = url else {
+                Logger.shared.log("Failed to parse file URL at index \(i)")
+                continue
+            }
+
+            // Delegate URL shortcut files (.webloc, .url) directly to default browser
+            if isURLShortcutFile(fileURL) {
+                openFileWithDefaultBrowser(fileURL)
+                continue
+            }
+
+            let request = RouteRequest(
+                url: fileURL,
+                sourceApp: sourceApp,
+                sourceWindowTitle: sourceWindowTitle,
+                timestamp: Date()
+            )
+
+            Logger.shared.log("Received file: \(fileURL), sourceApp: \(sourceApp ?? "unknown"), sourceWindowTitle: \(sourceWindowTitle ?? "unknown")")
+
+            routeURL(request: request)
+        }
+    }
+
+    private func isURLShortcutFile(_ url: URL) -> Bool {
+        let ext = url.pathExtension.lowercased()
+        return ext == "webloc" || ext == "url"
+    }
+
+    private func openFileWithDefaultBrowser(_ fileURL: URL) {
+        guard let config = configManager?.config else {
+            Logger.shared.log("No config, falling back to NSWorkspace.open for \(fileURL.lastPathComponent)")
+            NSWorkspace.shared.open(fileURL)
+            return
+        }
+
+        let bundleId = config.defaults.browser
+        guard let browserURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) else {
+            Logger.shared.log("Default browser \(bundleId) not found, falling back for \(fileURL.lastPathComponent)")
+            NSWorkspace.shared.open(fileURL)
+            return
+        }
+
+        NSWorkspace.shared.open([fileURL], withApplicationAt: browserURL, configuration: NSWorkspace.OpenConfiguration())
+        Logger.shared.log("Delegated \(fileURL.lastPathComponent) to \(bundleId)")
     }
 
     private func getSourceApp(from event: NSAppleEventDescriptor) -> String? {
