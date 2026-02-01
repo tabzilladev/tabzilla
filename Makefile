@@ -8,6 +8,7 @@ LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Versions/Current
 # Xcode puts build output in DerivedData by default
 DERIVED_DATA := $(HOME)/Library/Developer/Xcode/DerivedData
 XCODE_BUILD_APP = $(shell find "$(DERIVED_DATA)" -path "*/Tabzilla-*/Build/Products/Release/Tabzilla.app" -type d 2>/dev/null | head -1)
+XCODE_DEBUG_APP = $(shell find "$(DERIVED_DATA)" -path "*/Tabzilla-*/Build/Products/Debug/Tabzilla.app" -type d 2>/dev/null | head -1)
 
 # Default target
 all: build
@@ -21,11 +22,16 @@ build:
 		-quiet
 	@echo "Build complete"
 
-# Build debug version with SPM (faster iteration)
+# Build debug version with Xcode (SPM doesn't support mixed Swift/ObjC)
 debug:
-	@swift build
+	@echo "Building $(APP_NAME) (debug)..."
+	@xcodebuild -project $(APP_NAME).xcodeproj \
+		-scheme $(APP_NAME) \
+		-configuration Debug \
+		-quiet
+	@echo "Debug build complete"
 
-# Run unit tests
+# Run unit tests via SPM (tests don't use Executor/ChromeController)
 test:
 	@swift test
 
@@ -80,14 +86,14 @@ reload:
 # Test a URL (uses debug build for faster iteration)
 test-url: debug
 	@test -n "$(URL)" || (echo "Usage: make test-url URL=https://example.com [CONFIG=path/to/config.yaml]" && exit 1)
-	@.build/debug/$(APP_NAME) test "$(URL)" $(if $(CONFIG),-c "$(CONFIG)",)
+	@"$(XCODE_DEBUG_APP)/Contents/MacOS/$(APP_NAME)" test "$(URL)" $(if $(CONFIG),-c "$(CONFIG)",)
 
 # Show help
 help:
 	@echo "Tabzilla Development Commands"
 	@echo ""
 	@echo "  make build      Build release app bundle"
-	@echo "  make debug      Build debug binary with SPM (fast)"
+	@echo "  make debug      Build debug binary with Xcode"
 	@echo "  make test       Run unit tests"
 	@echo "  make install    Build, install to /Applications, register"
 	@echo "  make uninstall  Remove from /Applications"
