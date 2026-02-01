@@ -16,17 +16,11 @@ A native macOS application that registers as the system's default browser and ro
 
 ## Installation
 
-### Build from source
+<!-- TODO: Add Homebrew tap or pre-built release downloads -->
 
-```bash
-git clone https://github.com/bdupras/tabzilla.git
-cd tabzilla
-make install
-```
+For now, see [DEVELOPMENT.md](DEVELOPMENT.md) to build from source.
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed build instructions and development workflow.
-
-### Set as default browser
+After installing, set Tabzilla as your default browser:
 
 1. Open **System Settings** > **Desktop & Dock** > **Default web browser**
 2. Select **Tabzilla** from the dropdown
@@ -167,7 +161,7 @@ tabz status
 
 ## Development
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for build instructions, project structure, and architecture details.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for building from source, project structure, and architecture details.
 
 ## License
 
