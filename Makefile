@@ -1,4 +1,4 @@
-.PHONY: build debug test install uninstall register clean distclean run stop status reload test-url help
+.PHONY: build debug test install uninstall register clean distclean run stop kill status reload test-url help
 
 APP_NAME := Tabzilla
 BUNDLE_ID := dev.tabzilla.Tabzilla
@@ -74,6 +74,21 @@ run:
 # Stop the daemon
 stop:
 	@"$(INSTALLED_APP)/Contents/MacOS/$(APP_NAME)" quit 2>/dev/null || echo "Daemon not running"
+	@sleep 1
+	@if pgrep -f "$(APP_NAME).app/Contents/MacOS/$(APP_NAME)" >/dev/null 2>&1; then \
+		echo "Error: Tabzilla process(es) still running (possibly launched from Xcode or DerivedData)"; \
+		echo "Run 'make kill' to terminate all Tabzilla processes"; \
+		exit 1; \
+	fi
+
+# Force kill all Tabzilla processes
+kill:
+	@if pgrep -f "$(APP_NAME).app/Contents/MacOS/$(APP_NAME)" >/dev/null 2>&1; then \
+		pkill -f "$(APP_NAME).app/Contents/MacOS/$(APP_NAME)"; \
+		echo "Killed all Tabzilla processes"; \
+	else \
+		echo "No Tabzilla processes running"; \
+	fi
 
 # Show daemon status
 status:
@@ -102,6 +117,7 @@ help:
 	@echo ""
 	@echo "  make run        Start the daemon"
 	@echo "  make stop       Stop the daemon"
+	@echo "  make kill       Force kill all Tabzilla processes"
 	@echo "  make status     Show daemon status"
 	@echo "  make reload     Reload configuration"
 	@echo ""
