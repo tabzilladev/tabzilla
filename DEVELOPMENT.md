@@ -1,9 +1,20 @@
 # Development Guide
 
-## Prerequisites
+## Building from Source
 
-- macOS 13+
-- Xcode 15+ (includes Swift and command-line tools)
+Requires macOS 13+ and Xcode 15+.
+
+```bash
+git clone https://github.com/bdupras/tabzilla.git
+cd tabzilla
+make install
+```
+
+This builds the app and installs it to `/Applications/Tabzilla.app`.
+
+After installing:
+1. Set as default browser: **System Settings** > **Desktop & Dock** > **Default web browser** > **Tabzilla**
+2. Start the daemon: `make run`
 
 ## Build System
 
@@ -33,20 +44,6 @@ Run `make help` for all available commands:
 
 **Note**: Xcode build must use default DerivedData location. Custom SYMROOT breaks SPM dependency resolution.
 
-## Quick Start
-
-```bash
-# Clone and build
-git clone https://github.com/bdupras/tabzilla.git
-cd tabzilla
-make install
-
-# Set as default browser in System Settings > Desktop & Dock > Default web browser
-
-# Start the daemon
-make run
-```
-
 ## Testing
 
 ```bash
@@ -75,7 +72,7 @@ tail -f ~/Library/Logs/Tabzilla/tabz.log  # Watch logs
 
 ```
 tabzilla/
-├── Package.swift                    # SPM config (macOS 13+, ArgumentParser, Yams)
+├── Package.swift                   # SPM config (macOS 13+, ArgumentParser, Yams)
 ├── Tabzilla.xcodeproj/               # Xcode project for app bundle
 ├── Makefile                        # Build/test/install workflow
 ├── Sources/
@@ -103,9 +100,11 @@ tabzilla/
 ### Data Flow
 
 ```
-URL Click → Apple Event → RouteRequest → RuleEngine → RouteAction → Executor → ChromeController → Browser
+URL Click → Apple Event → RouteRequest → RuleEngine → RouteAction → Executor → [Scripting Bridge] → Browser
+          ╰─── macOS ──╯╰─────────────────────────── Tabzilla ───────────────────────╯
 
-Shortcut files (.webloc/.url) → Apple Event → Delegate to default browser (bypass rules)
+Shortcut files (.webloc/.url) → Apple Event → Delegate to default: browser (bypass rules)
+          ╰──────────── macOS ─────────────╯╰──────────────── Tabzilla ───────────────────╯
 ```
 
 ### Key Components
