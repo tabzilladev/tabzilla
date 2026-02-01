@@ -25,17 +25,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var executor: Executor?
     private var fileWatcher: FileWatcher?
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        // Hide dock icon (LSUIElement behavior)
-        NSApp.setActivationPolicy(.accessory)
-
-        // Register for URL events
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // Register for URL events BEFORE didFinishLaunching
+        // This ensures we catch URLs that launched the app
         NSAppleEventManager.shared().setEventHandler(
             self,
             andSelector: #selector(handleGetURLEvent(_:withReplyEvent:)),
             forEventClass: AEEventClass(kInternetEventClass),
             andEventID: AEEventID(kAEGetURL)
         )
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Hide dock icon (LSUIElement behavior)
+        NSApp.setActivationPolicy(.accessory)
 
         // Set up signal handlers for CLI commands
         setupSignalHandlers()
