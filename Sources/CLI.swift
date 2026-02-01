@@ -199,8 +199,8 @@ extension CLI {
         )
 
         func run() throws {
-            let pid = getDaemonPID()
-            let isRunning = pid.map { isProcessRunning($0) } ?? false
+            let pid = DaemonPID.get()
+            let isRunning = pid.map { DaemonPID.isRunning($0) } ?? false
 
             print("Tabzilla Status")
             print("─────────────")
@@ -251,19 +251,6 @@ extension CLI {
                 print("  Error: \(error.localizedDescription)")
             }
         }
-
-        private func getDaemonPID() -> pid_t? {
-            let pidPath = getPIDFilePath()
-            guard let pidString = try? String(contentsOfFile: pidPath, encoding: .utf8),
-                  let pid = pid_t(pidString.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-                return nil
-            }
-            return pid
-        }
-
-        private func isProcessRunning(_ pid: pid_t) -> Bool {
-            return kill(pid, 0) == 0
-        }
     }
 }
 
@@ -284,8 +271,8 @@ extension CLI {
             ]
 
             // Daemon state
-            let pid = getDaemonPID()
-            let isRunning = pid.map { isProcessRunning($0) } ?? false
+            let pid = DaemonPID.get()
+            let isRunning = pid.map { DaemonPID.isRunning($0) } ?? false
             var daemonState: [String: Any] = [
                 "running": isRunning
             ]
@@ -404,19 +391,6 @@ extension CLI {
         private func isAppRunning(bundleId: String) -> Bool {
             return NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == bundleId }
         }
-
-        private func getDaemonPID() -> pid_t? {
-            let pidPath = getPIDFilePath()
-            guard let pidString = try? String(contentsOfFile: pidPath, encoding: .utf8),
-                  let pid = pid_t(pidString.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-                return nil
-            }
-            return pid
-        }
-
-        private func isProcessRunning(_ pid: pid_t) -> Bool {
-            return kill(pid, 0) == 0
-        }
     }
 }
 
@@ -429,11 +403,11 @@ extension CLI {
         )
 
         func run() throws {
-            guard let pid = getDaemonPID() else {
+            guard let pid = DaemonPID.get() else {
                 throw ValidationError("Daemon is not running (no PID file found)")
             }
 
-            guard isProcessRunning(pid) else {
+            guard DaemonPID.isRunning(pid) else {
                 throw ValidationError("Daemon is not running (PID \(pid) not found)")
             }
 
@@ -443,19 +417,6 @@ extension CLI {
             } else {
                 throw ValidationError("Failed to send signal to daemon: \(String(cString: strerror(errno)))")
             }
-        }
-
-        private func getDaemonPID() -> pid_t? {
-            let pidPath = getPIDFilePath()
-            guard let pidString = try? String(contentsOfFile: pidPath, encoding: .utf8),
-                  let pid = pid_t(pidString.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-                return nil
-            }
-            return pid
-        }
-
-        private func isProcessRunning(_ pid: pid_t) -> Bool {
-            return kill(pid, 0) == 0
         }
     }
 }
@@ -469,11 +430,11 @@ extension CLI {
         )
 
         func run() throws {
-            guard let pid = getDaemonPID() else {
+            guard let pid = DaemonPID.get() else {
                 throw ValidationError("Daemon is not running (no PID file found)")
             }
 
-            guard isProcessRunning(pid) else {
+            guard DaemonPID.isRunning(pid) else {
                 throw ValidationError("Daemon is not running (PID \(pid) not found)")
             }
 
@@ -484,19 +445,6 @@ extension CLI {
                 throw ValidationError("Failed to send signal to daemon: \(String(cString: strerror(errno)))")
             }
         }
-
-        private func getDaemonPID() -> pid_t? {
-            let pidPath = getPIDFilePath()
-            guard let pidString = try? String(contentsOfFile: pidPath, encoding: .utf8),
-                  let pid = pid_t(pidString.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-                return nil
-            }
-            return pid
-        }
-
-        private func isProcessRunning(_ pid: pid_t) -> Bool {
-            return kill(pid, 0) == 0
-        }
     }
 }
 
@@ -505,4 +453,19 @@ extension CLI {
 private func getPIDFilePath() -> String {
     let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
     return supportDir.appendingPathComponent("Tabzilla/tabz.pid").path
+}
+
+private enum DaemonPID {
+    static func get() -> pid_t? {
+        let pidPath = getPIDFilePath()
+        guard let pidString = try? String(contentsOfFile: pidPath, encoding: .utf8),
+              let pid = pid_t(pidString.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            return nil
+        }
+        return pid
+    }
+
+    static func isRunning(_ pid: pid_t) -> Bool {
+        kill(pid, 0) == 0
+    }
 }

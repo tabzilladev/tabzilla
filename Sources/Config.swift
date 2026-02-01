@@ -78,8 +78,11 @@ class ConfigurationManager {
             return try loadConfig(from: configPath)
         }
 
-        // No config file found - create default and return it
+        // No config file found - create default and load it
         try createDefaultConfig()
+        if let configPath = findConfigPath() {
+            return try loadConfig(from: configPath)
+        }
         return Config()
     }
 
