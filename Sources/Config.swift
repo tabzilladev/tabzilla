@@ -11,9 +11,9 @@ struct Config: Codable {
 
     struct Defaults: Codable {
         let browser: String
-        let window: String
+        let window: String?
 
-        init(browser: String = "com.google.Chrome", window: String = "Default") {
+        init(browser: String = "com.google.Chrome", window: String? = nil) {
             self.browser = browser
             self.window = window
         }
@@ -129,7 +129,7 @@ class ConfigurationManager {
 
         defaults:
           browser: com.google.Chrome
-          window: Default
+          # window: Default  # Optional: omit to let the browser decide
 
         rules:
           # Example: Route work domains to a specific browser and window

@@ -40,7 +40,7 @@ version: 1
 
 defaults:
   browser: com.google.Chrome
-  window: Default
+  # window: Default  # Optional: omit to let the browser decide
 
 rules:
   # Route work Slack links to Chrome Beta
@@ -84,9 +84,9 @@ All matching uses ICU regex (NSRegularExpression). Rules are evaluated in order;
 
 **Actions**:
 - `browser` - Bundle ID of target browser (default: `com.google.Chrome`)
-- `window` - Name for window targeting via `givenName` (default: `Default`)
-- `useTab` - Regex pattern to find existing tab; focus and navigate
-- `focusTab` - Regex pattern to find existing tab; focus only (don't navigate)
+- `window` - Name of target browser window (optional; omit to let browser decide)
+- `useTab` - Regex to find existing tab; focus and navigate
+- `focusTab` - Regex to find existing tab; focus only (don't navigate)
 
 **Regex features**:
 - `(?i)` - Case-insensitive matching
@@ -123,13 +123,13 @@ tabz quit
 
 3. **Rule Matching**: The URL and source info are matched against rules in order. First match wins.
 
-4. **Window Targeting**: Chrome windows are identified by their `givenName` property (distinct from the window title). If no matching window exists, one is created.
+4. **Window Targeting**: Chrome windows are identified by their name (Menu Bar > Window > Name Window ...), which is distinct from the window title. If no matching window exists, one is created.
 
 5. **Tab Reuse**: If `useTab` or `focusTab` is specified, existing tabs are searched before opening a new one.
 
 ## Browser Support
 
-Currently supports Chrome-based browsers via AppleScript:
+Currently supports Chrome-based browsers:
 - `com.google.Chrome` - Google Chrome
 - `com.google.Chrome.beta` - Google Chrome Beta
 
