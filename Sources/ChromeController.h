@@ -66,6 +66,11 @@ NS_ASSUME_NONNULL_BEGIN
                           toURL:(NSString *)urlString
                        bundleId:(NSString *)bundleId;
 
+/// Get all windows and tabs for a browser (for status/debugging)
+/// @param bundleId The browser bundle ID
+/// @return Array of dictionaries with window/tab info, or nil if browser unavailable
+- (nullable NSArray<NSDictionary *> *)getAllWindowsForBundleId:(NSString *)bundleId;
+
 @end
 
 NS_ASSUME_NONNULL_END

@@ -183,4 +183,47 @@
     [tab setURL:urlString];
 }
 
+- (nullable NSArray<NSDictionary *> *)getAllWindowsForBundleId:(NSString *)bundleId {
+    ChromeApplication *chrome = [self chromeAppForBundleId:bundleId];
+    if (!chrome) return nil;
+
+    // Check if browser is running
+    if (![chrome isRunning]) return @[];
+
+    NSMutableArray<NSDictionary *> *result = [NSMutableArray array];
+
+    for (ChromeWindow *window in chrome.windows) {
+        NSString *windowId = [window id];
+        NSString *givenName = window.givenName ?: @"";
+        NSInteger activeTabIdx = window.activeTabIndex;
+
+        NSMutableArray<NSDictionary *> *tabs = [NSMutableArray array];
+        NSInteger tabIndex = 1;
+        for (ChromeTab *tab in window.tabs) {
+            NSString *tabId = [tab id];
+            NSString *tabURL = tab.URL ?: @"";
+            NSString *tabTitle = tab.title ?: @"";
+            BOOL isActive = (tabIndex == activeTabIdx);
+
+            [tabs addObject:@{
+                @"id": tabId ?: @"",
+                @"index": @(tabIndex),
+                @"url": tabURL,
+                @"title": tabTitle,
+                @"active": @(isActive)
+            }];
+            tabIndex++;
+        }
+
+        [result addObject:@{
+            @"id": windowId ?: @"",
+            @"givenName": givenName,
+            @"tabCount": @(tabs.count),
+            @"tabs": tabs
+        }];
+    }
+
+    return result;
+}
+
 @end

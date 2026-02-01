@@ -24,6 +24,7 @@ Run `make help` for all available commands:
   make stop       Stop the daemon
   make kill       Force kill all Tabzilla processes
   make status     Show daemon status
+  make dump       Dump state of Tabzilla and browsers (JSON)
   make reload     Reload configuration
 
   make test-url URL=<url> [CONFIG=<path>]

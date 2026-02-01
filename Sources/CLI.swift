@@ -1,12 +1,13 @@
 import Foundation
 import ArgumentParser
+import AppKit
 
 struct CLI: ParsableCommand {
     static var configuration = CommandConfiguration(
         commandName: "tabz",
         abstract: "URL routing daemon for macOS",
         version: "1.0.0",
-        subcommands: [Open.self, Test.self, Status.self, Reload.self, Quit.self],
+        subcommands: [Open.self, Test.self, Status.self, Dump.self, Reload.self, Quit.self],
         defaultSubcommand: nil
     )
 }
@@ -249,6 +250,159 @@ extension CLI {
                 print("Config valid: No")
                 print("  Error: \(error.localizedDescription)")
             }
+        }
+
+        private func getDaemonPID() -> pid_t? {
+            let pidPath = getPIDFilePath()
+            guard let pidString = try? String(contentsOfFile: pidPath, encoding: .utf8),
+                  let pid = pid_t(pidString.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+                return nil
+            }
+            return pid
+        }
+
+        private func isProcessRunning(_ pid: pid_t) -> Bool {
+            return kill(pid, 0) == 0
+        }
+    }
+}
+
+// MARK: - Dump Command
+
+extension CLI {
+    struct Dump: ParsableCommand {
+        static var configuration = CommandConfiguration(
+            abstract: "Dump full state as JSON (for tools/agents)"
+        )
+
+        @Option(name: .shortAndLong, help: "Path to config file")
+        var config: String?
+
+        func run() throws {
+            var result: [String: Any] = [
+                "timestamp": ISO8601DateFormatter().string(from: Date())
+            ]
+
+            // Daemon state
+            let pid = getDaemonPID()
+            let isRunning = pid.map { isProcessRunning($0) } ?? false
+            var daemonState: [String: Any] = [
+                "running": isRunning
+            ]
+            if let pid = pid, isRunning {
+                daemonState["pid"] = pid
+            }
+            result["daemon"] = daemonState
+
+            // Config state
+            var configState: [String: Any] = [
+                "searchPaths": ConfigurationManager.searchPaths
+            ]
+
+            // Determine config path
+            let configPath: String?
+            if let path = config {
+                configPath = (path as NSString).expandingTildeInPath
+            } else {
+                configPath = ConfigurationManager.findConfigPath()
+            }
+            if let path = configPath {
+                configState["path"] = path
+            }
+
+            do {
+                let loadedConfig: Config
+                if let path = config {
+                    let expandedPath = (path as NSString).expandingTildeInPath
+                    loadedConfig = try ConfigurationManager.loadConfig(from: expandedPath)
+                } else {
+                    loadedConfig = try ConfigurationManager.loadConfig()
+                }
+                configState["valid"] = true
+                configState["version"] = loadedConfig.version
+                configState["ruleCount"] = loadedConfig.rules.count
+                configState["defaults"] = [
+                    "browser": loadedConfig.defaults.browser,
+                    "window": loadedConfig.defaults.window
+                ]
+                if let logging = loadedConfig.logging {
+                    var loggingState: [String: Any] = ["enabled": logging.enabled]
+                    if let logPath = logging.path {
+                        loggingState["path"] = logPath
+                    }
+                    configState["logging"] = loggingState
+                }
+
+                // Browser state (requires loaded config)
+                result["browsers"] = getBrowserState(for: loadedConfig)
+            } catch {
+                configState["valid"] = false
+                configState["error"] = error.localizedDescription
+                result["browsers"] = []
+            }
+            result["config"] = configState
+
+            // Output JSON
+            if let jsonData = try? JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]),
+               let jsonString = String(data: jsonData, encoding: .utf8) {
+                print(jsonString)
+            }
+        }
+
+        /// Extract unique browser bundle IDs from config
+        private func getBrowsersFromConfig(_ config: Config) -> Set<String> {
+            var browsers = Set<String>()
+            browsers.insert(config.defaults.browser)
+            for rule in config.rules {
+                if let browser = rule.browser {
+                    browsers.insert(browser)
+                }
+            }
+            return browsers
+        }
+
+        /// Get browser state for all browsers referenced in config
+        private func getBrowserState(for config: Config) -> [[String: Any]] {
+            let browsers = getBrowsersFromConfig(config)
+            let chromeController = ChromeController.shared()
+
+            var browserStates: [[String: Any]] = []
+
+            for bundleId in browsers.sorted() {
+                var browserInfo: [String: Any] = [
+                    "bundleId": bundleId
+                ]
+
+                // Check if browser is installed
+                let isInstalled = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) != nil
+                browserInfo["installed"] = isInstalled
+
+                // Check if it's a Chrome-based browser we can query
+                let isChromeBasedBrowser = bundleId.hasPrefix("com.google.Chrome")
+                browserInfo["supportsScriptingBridge"] = isChromeBasedBrowser
+
+                if isChromeBasedBrowser, isInstalled {
+                    if let windows = chromeController.getAllWindows(forBundleId: bundleId) {
+                        browserInfo["running"] = !windows.isEmpty || isAppRunning(bundleId: bundleId)
+                        browserInfo["windowCount"] = windows.count
+                        browserInfo["windows"] = windows
+                    } else {
+                        browserInfo["running"] = false
+                        browserInfo["error"] = "Could not query browser state"
+                    }
+                } else if !isChromeBasedBrowser {
+                    browserInfo["running"] = isAppRunning(bundleId: bundleId)
+                }
+
+                browserStates.append(browserInfo)
+            }
+
+            return browserStates
+        }
+
+        /// Check if an app is running by bundle ID
+        private func isAppRunning(bundleId: String) -> Bool {
+            return NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == bundleId }
         }
 
         private func getDaemonPID() -> pid_t? {
