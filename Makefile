@@ -1,4 +1,4 @@
-.PHONY: build debug test install uninstall register clean distclean run stop kill status reload test-url help
+.PHONY: build debug test install uninstall register clean distclean run stop kill status dump reload test-url help
 
 APP_NAME := Tabzilla
 BUNDLE_ID := dev.tabzilla.Tabzilla
@@ -94,6 +94,10 @@ kill:
 status:
 	@"$(INSTALLED_APP)/Contents/MacOS/$(APP_NAME)" status
 
+# Dump state of Tabzilla and browsers referenced in the configuration (JSON)
+dump:
+	@"$(INSTALLED_APP)/Contents/MacOS/$(APP_NAME)" dump
+
 # Reload configuration
 reload:
 	@"$(INSTALLED_APP)/Contents/MacOS/$(APP_NAME)" reload
@@ -119,6 +123,7 @@ help:
 	@echo "  make stop       Stop the daemon"
 	@echo "  make kill       Force kill all Tabzilla processes"
 	@echo "  make status     Show daemon status"
+	@echo "  make dump       Dump full state as JSON (for tools/agents)"
 	@echo "  make reload     Reload configuration"
 	@echo ""
 	@echo "  make test-url URL=<url> [CONFIG=<path>]"
