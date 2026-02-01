@@ -235,34 +235,62 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func getSourceApp(from event: NSAppleEventDescriptor) -> String? {
-        guard let sourceDescriptor = event.attributeDescriptor(forKeyword: AEKeyword(keyOriginalAddressAttr)) else {
-            return nil
+        // Method 1: Try keyOriginalAddressAttr (direct bundle ID)
+        if let sourceDescriptor = event.attributeDescriptor(forKeyword: AEKeyword(keyOriginalAddressAttr)) {
+            if let bundleIDDescriptor = sourceDescriptor.coerce(toDescriptorType: typeApplicationBundleID) {
+                if let bundleId = bundleIDDescriptor.stringValue {
+                    return bundleId
+                }
+            }
         }
 
-        // Try to get bundle ID
-        if let bundleIDDescriptor = sourceDescriptor.coerce(toDescriptorType: typeApplicationBundleID) {
-            return bundleIDDescriptor.stringValue
+        // Method 2: Try keySenderPIDAttr and look up bundle ID from PID
+        if let pidDescriptor = event.attributeDescriptor(forKeyword: AEKeyword(keySenderPIDAttr)) {
+            let pid = pidDescriptor.int32Value
+            if pid > 0 {
+                if let app = NSRunningApplication(processIdentifier: pid) {
+                    return app.bundleIdentifier
+                }
+            }
         }
 
         return nil
     }
 
     private func getSourceWindowTitle(for bundleId: String) -> String? {
-        let script = """
-        tell application id "\(bundleId)"
-            if (count of windows) > 0 then
-                return name of front window
-            end if
-        end tell
-        """
+        // Use Accessibility API - works for all apps including Electron apps like Slack
+        guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first else {
+            return nil
+        }
 
-        var error: NSDictionary?
-        if let scriptObject = NSAppleScript(source: script) {
-            let result = scriptObject.executeAndReturnError(&error)
-            if error == nil {
-                return result.stringValue
+        let appElement = AXUIElementCreateApplication(app.processIdentifier)
+
+        // Get the focused window
+        var focusedWindow: CFTypeRef?
+        let result = AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedWindow)
+
+        if result == .success, let window = focusedWindow {
+            var titleValue: CFTypeRef?
+            let titleResult = AXUIElementCopyAttributeValue(window as! AXUIElement, kAXTitleAttribute as CFString, &titleValue)
+
+            if titleResult == .success, let title = titleValue as? String {
+                return title
             }
         }
+
+        // Fallback: try to get front window from window list
+        var windowList: CFTypeRef?
+        let listResult = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowList)
+
+        if listResult == .success, let windows = windowList as? [AXUIElement], let frontWindow = windows.first {
+            var titleValue: CFTypeRef?
+            let titleResult = AXUIElementCopyAttributeValue(frontWindow, kAXTitleAttribute as CFString, &titleValue)
+
+            if titleResult == .success, let title = titleValue as? String {
+                return title
+            }
+        }
+
         return nil
     }
 
