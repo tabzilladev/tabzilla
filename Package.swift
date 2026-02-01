@@ -1,4 +1,7 @@
 // swift-tools-version: 5.9
+// NOTE: This Package.swift is used for running tests only.
+// The app is built with Xcode (required for mixed Swift/Obj-C).
+// See CLAUDE.md for build system details.
 import PackageDescription
 
 let package = Package(

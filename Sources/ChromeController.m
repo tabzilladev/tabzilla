@@ -10,6 +10,8 @@
 #import <ScriptingBridge/ScriptingBridge.h>
 #import "Tabzilla-Swift.h"
 
+NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
+
 @implementation ChromeTabInfo
 @end
 
@@ -40,7 +42,7 @@
     ChromeApplication *chrome = [self chromeAppForBundleId:bundleId];
     if (!chrome) {
         if (error) {
-            *error = [NSError errorWithDomain:@"ChromeController"
+            *error = [NSError errorWithDomain:TabzillaErrorDomain
                                          code:1
                                      userInfo:@{NSLocalizedDescriptionKey: @"Chrome not available"}];
         }
