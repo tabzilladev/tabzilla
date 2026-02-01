@@ -19,18 +19,12 @@ A native macOS application that registers as the system's default browser and ro
 ### Build from source
 
 ```bash
-# Clone the repository
 git clone https://github.com/bdupras/tabzilla.git
 cd tabzilla
-
-# Build with Swift Package Manager
-swift build -c release
-
-# Build the app bundle with Xcode
-xcodebuild -project Tabzilla.xcodeproj -scheme Tabzilla -configuration Release
-
-# The app will be in build/Release/Tabzilla.app
+make install
 ```
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed build instructions and development workflow.
 
 ### Set as default browser
 
@@ -129,7 +123,7 @@ tabz quit
 
 ## How It Works
 
-1. **URL Reception**: Tabzilla registers for `http` and `https` URL schemes. When the user clicks a link, macOS sends an Apple Event to Tabzilla.
+1. **URL Reception**: Tabzilla registers for `http`, `https`, and `file` URL schemes. When the user clicks a link, macOS sends an Apple Event to Tabzilla. It also handles `.webloc` and `.url` shortcut files (delegated directly to the default browser).
 
 2. **Source Detection**: Tabzilla captures the source app's bundle ID and attempts to read the frontmost window title (for Slack workspace detection, etc.).
 
@@ -173,16 +167,7 @@ tabz status
 
 ## Development
 
-```bash
-# Run tests
-swift test
-
-# Build for debugging
-swift build
-
-# Build app bundle
-xcodebuild -project Tabzilla.xcodeproj -scheme Tabzilla build
-```
+See [DEVELOPMENT.md](DEVELOPMENT.md) for build instructions, project structure, and architecture details.
 
 ## License
 
