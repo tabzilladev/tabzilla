@@ -235,7 +235,7 @@ extension CLI {
                 print("  Rules:    \(config.rules.count)")
                 print("  Defaults:")
                 print("    Browser: \(config.defaults.browser)")
-                print("    Window:  \(config.defaults.window)")
+                print("    Window:  \(config.defaults.window ?? "(browser default)")")
                 if let logging = config.logging {
                     print("  Logging:")
                     print("    Enabled: \(logging.enabled)")
@@ -308,10 +308,11 @@ extension CLI {
                 configState["valid"] = true
                 configState["version"] = loadedConfig.version
                 configState["ruleCount"] = loadedConfig.rules.count
-                configState["defaults"] = [
-                    "browser": loadedConfig.defaults.browser,
-                    "window": loadedConfig.defaults.window
-                ]
+                var defaults: [String: Any] = ["browser": loadedConfig.defaults.browser]
+                if let window = loadedConfig.defaults.window {
+                    defaults["window"] = window
+                }
+                configState["defaults"] = defaults
                 if let logging = loadedConfig.logging {
                     var loggingState: [String: Any] = ["enabled": logging.enabled]
                     if let logPath = logging.path {

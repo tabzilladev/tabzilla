@@ -44,13 +44,13 @@ class Executor {
 
     private func executeChromeAction(action: RouteAction, browserBundleId: String) throws {
         let url = action.rewrittenURL.absoluteString
-        let windowName = action.windowTarget?.name ?? "Default"
 
         // First, check for tab reuse if specified
         if let tabAction = action.tabAction {
+            let preferredWindow = action.windowTarget?.name ?? ""
             if let tabInfo = chromeController.findTab(
                 matchingPattern: tabAction.pattern,
-                preferredWindow: windowName,
+                preferredWindow: preferredWindow,
                 bundleId: browserBundleId
             ) {
                 Logger.shared.log("Found matching tab in window '\(tabInfo.windowName)', focusing")
@@ -72,11 +72,18 @@ class Executor {
             }
         }
 
-        // No tab to reuse - open in target window
+        // If no window targeting specified, use browser's natural behavior
+        guard let windowTarget = action.windowTarget else {
+            Logger.shared.log("Opening URL with browser's default behavior")
+            try openURLInBrowser(action.rewrittenURL, bundleId: browserBundleId)
+            return
+        }
+
+        // Open in target window
         var error: NSError?
         let success = chromeController.openURL(
             url,
-            inWindow: windowName,
+            inWindow: windowTarget.name,
             bundleId: browserBundleId,
             error: &error
         )
@@ -87,7 +94,7 @@ class Executor {
             throw ExecutorError.scriptingError(message)
         }
 
-        Logger.shared.log("Opened URL in Chrome window '\(windowName)'")
+        Logger.shared.log("Opened URL in Chrome window '\(windowTarget.name)'")
     }
 
     private func openURLInBrowser(_ url: URL, bundleId: String) throws {

@@ -51,7 +51,7 @@ class RuleEngine {
             matchedRule: nil,
             rewrittenURL: request.url,
             browser: config.defaults.browser,
-            windowTarget: WindowTarget(name: config.defaults.window),
+            windowTarget: config.defaults.window.map { WindowTarget(name: $0) },
             tabAction: nil
         )
     }
@@ -88,8 +88,7 @@ class RuleEngine {
 
         // All conditions matched - build action
         let browser = rule.browser ?? config.defaults.browser
-        let windowName = rule.window ?? config.defaults.window
-        let windowTarget = WindowTarget(name: windowName)
+        let windowTarget = (rule.window ?? config.defaults.window).map { WindowTarget(name: $0) }
 
         // Build tab action if specified
         var tabAction: TabAction?
