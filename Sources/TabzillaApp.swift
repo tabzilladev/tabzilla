@@ -324,14 +324,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - PID File Management
 
-    private var pidFilePath: String {
-        let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let tabzillaDir = supportDir.appendingPathComponent("Tabzilla")
-        return tabzillaDir.appendingPathComponent("tabz.pid").path
-    }
-
     private func writePIDFile() {
         let pid = ProcessInfo.processInfo.processIdentifier
+        let pidFilePath = TabzillaPaths.pidFile
         let pidDir = (pidFilePath as NSString).deletingLastPathComponent
 
         do {
@@ -343,6 +338,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func removePIDFile() {
-        try? FileManager.default.removeItem(atPath: pidFilePath)
+        try? FileManager.default.removeItem(atPath: TabzillaPaths.pidFile)
     }
 }
