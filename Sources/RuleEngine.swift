@@ -16,16 +16,23 @@ struct RouteAction {
     let rewrittenURL: URL
     let browser: String
     let windowTarget: WindowTarget?
-    let tabAction: TabAction?
+    let tabActions: [TabAction]
 }
 
 struct WindowTarget {
     let name: String
 }
 
+/// Kind of tab action to perform
+enum TabActionKind {
+    case focus   // focusTab: focus existing tab, don't navigate
+    case use     // useTab: focus and navigate existing tab
+    case follow  // followTab: open new tab in same window as matched tab
+}
+
 struct TabAction {
     let pattern: String
-    let navigate: Bool  // true = useTab (navigate), false = focusTab (focus only)
+    let kind: TabActionKind
 }
 
 // MARK: - Rule Engine
@@ -52,7 +59,7 @@ class RuleEngine {
             rewrittenURL: request.url,
             browser: config.defaults.browser,
             windowTarget: config.defaults.window.map { WindowTarget(name: $0) },
-            tabAction: nil
+            tabActions: []
         )
     }
 
@@ -90,14 +97,19 @@ class RuleEngine {
         let browser = rule.browser ?? config.defaults.browser
         let windowTarget = (rule.window ?? config.defaults.window).map { WindowTarget(name: $0) }
 
-        // Build tab action if specified
-        var tabAction: TabAction?
+        // Build tab actions in priority order: focusTab → useTab → followTab
+        var tabActions: [TabAction] = []
+        if let focusTabPattern = rule.focusTab {
+            let substitutedPattern = substituteCaptures(focusTabPattern, with: captureGroups)
+            tabActions.append(TabAction(pattern: substitutedPattern, kind: .focus))
+        }
         if let useTabPattern = rule.useTab {
             let substitutedPattern = substituteCaptures(useTabPattern, with: captureGroups)
-            tabAction = TabAction(pattern: substitutedPattern, navigate: true)
-        } else if let focusTabPattern = rule.focusTab {
-            let substitutedPattern = substituteCaptures(focusTabPattern, with: captureGroups)
-            tabAction = TabAction(pattern: substitutedPattern, navigate: false)
+            tabActions.append(TabAction(pattern: substitutedPattern, kind: .use))
+        }
+        if let followTabPattern = rule.followTab {
+            let substitutedPattern = substituteCaptures(followTabPattern, with: captureGroups)
+            tabActions.append(TabAction(pattern: substitutedPattern, kind: .follow))
         }
 
         return RouteAction(
@@ -105,7 +117,7 @@ class RuleEngine {
             rewrittenURL: request.url,
             browser: browser,
             windowTarget: windowTarget,
-            tabAction: tabAction
+            tabActions: tabActions
         )
     }
 
@@ -137,12 +149,14 @@ class RuleEngine {
     }
 
     /// Substitute capture group references (\1, \2, etc.) with actual values
+    /// Captured values are regex-escaped so they match literally in tab patterns
     private func substituteCaptures(_ pattern: String, with groups: [String]) -> String {
         var result = pattern
 
-        // Replace \1, \2, etc. with captured groups
+        // Replace \1, \2, etc. with regex-escaped captured groups
         for i in 1..<min(groups.count, 10) {
-            result = result.replacingOccurrences(of: "\\\(i)", with: groups[i])
+            let escapedGroup = NSRegularExpression.escapedPattern(for: groups[i])
+            result = result.replacingOccurrences(of: "\\\(i)", with: escapedGroup)
         }
 
         return result

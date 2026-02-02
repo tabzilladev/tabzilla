@@ -9,7 +9,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "github", url: "github\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Code", useTab: nil, focusTab: nil)
+                Config.Rule(name: "github", url: "github\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Code", useTab: nil, focusTab: nil, followTab: nil)
             ]
         )
 
@@ -25,7 +25,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "github", url: "github\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Code", useTab: nil, focusTab: nil)
+                Config.Rule(name: "github", url: "github\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Code", useTab: nil, focusTab: nil, followTab: nil)
             ]
         )
 
@@ -41,7 +41,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "github", url: "(?i)github\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Code", useTab: nil, focusTab: nil)
+                Config.Rule(name: "github", url: "(?i)github\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Code", useTab: nil, focusTab: nil, followTab: nil)
             ]
         )
 
@@ -57,7 +57,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "slack", url: nil, sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: nil, browser: "com.google.Chrome.beta", window: "Work", useTab: nil, focusTab: nil)
+                Config.Rule(name: "slack", url: nil, sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: nil, browser: "com.google.Chrome.beta", window: "Work", useTab: nil, focusTab: nil, followTab: nil)
             ]
         )
 
@@ -76,7 +76,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "slack", url: nil, sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: nil, browser: "com.google.Chrome.beta", window: "Work", useTab: nil, focusTab: nil)
+                Config.Rule(name: "slack", url: nil, sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: nil, browser: "com.google.Chrome.beta", window: "Work", useTab: nil, focusTab: nil, followTab: nil)
             ]
         )
 
@@ -95,7 +95,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "work-slack", url: nil, sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: "(?i)work", browser: "com.google.Chrome.beta", window: "Work", useTab: nil, focusTab: nil)
+                Config.Rule(name: "work-slack", url: nil, sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: "(?i)work", browser: "com.google.Chrome.beta", window: "Work", useTab: nil, focusTab: nil, followTab: nil)
             ]
         )
 
@@ -114,7 +114,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "work-slack", url: nil, sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: "(?i)work", browser: "com.google.Chrome.beta", window: "Work", useTab: nil, focusTab: nil)
+                Config.Rule(name: "work-slack", url: nil, sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: "(?i)work", browser: "com.google.Chrome.beta", window: "Work", useTab: nil, focusTab: nil, followTab: nil)
             ]
         )
 
@@ -134,7 +134,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "work-github", url: "github\\.com", sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: "(?i)work", browser: "com.google.Chrome.beta", window: "Work-Code", useTab: nil, focusTab: nil)
+                Config.Rule(name: "work-github", url: "github\\.com", sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: "(?i)work", browser: "com.google.Chrome.beta", window: "Work-Code", useTab: nil, focusTab: nil, followTab: nil)
             ]
         )
 
@@ -171,7 +171,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "google-docs", url: "docs\\.google\\.com/document/d/([^/]+)", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: "docs\\.google\\.com/document/d/\\1", focusTab: nil)
+                Config.Rule(name: "google-docs", url: "docs\\.google\\.com/document/d/([^/]+)", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: "docs\\.google\\.com/document/d/\\1", focusTab: nil, followTab: nil)
             ]
         )
 
@@ -179,16 +179,16 @@ final class RuleEngineTests: XCTestCase {
         let action = engine.testMatch(url: URL(string: "https://docs.google.com/document/d/ABC123/edit#heading=h.xyz")!)
 
         XCTAssertEqual(action.matchedRule, "google-docs")
-        XCTAssertNotNil(action.tabAction)
-        XCTAssertEqual(action.tabAction?.navigate, true)
-        XCTAssertEqual(action.tabAction?.pattern, "docs\\.google\\.com/document/d/ABC123")
+        XCTAssertEqual(action.tabActions.count, 1)
+        XCTAssertEqual(action.tabActions.first?.kind, .use)
+        XCTAssertEqual(action.tabActions.first?.pattern, "docs\\.google\\.com/document/d/ABC123")
     }
 
     func testFocusTabPattern() {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "jira", url: "jira\\.example\\.com/browse/(\\w+-\\d+)", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: nil, focusTab: "jira\\.example\\.com/browse/\\1")
+                Config.Rule(name: "jira", url: "jira\\.example\\.com/browse/(\\w+-\\d+)", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: nil, focusTab: "jira\\.example\\.com/browse/\\1", followTab: nil)
             ]
         )
 
@@ -196,9 +196,9 @@ final class RuleEngineTests: XCTestCase {
         let action = engine.testMatch(url: URL(string: "https://jira.example.com/browse/PROJ-123")!)
 
         XCTAssertEqual(action.matchedRule, "jira")
-        XCTAssertNotNil(action.tabAction)
-        XCTAssertEqual(action.tabAction?.navigate, false)
-        XCTAssertEqual(action.tabAction?.pattern, "jira\\.example\\.com/browse/PROJ-123")
+        XCTAssertEqual(action.tabActions.count, 1)
+        XCTAssertEqual(action.tabActions.first?.kind, .focus)
+        XCTAssertEqual(action.tabActions.first?.pattern, "jira\\.example\\.com/browse/PROJ-123")
     }
 
     // MARK: - Rule Priority
@@ -207,9 +207,9 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "specific", url: "github\\.com/airbnb", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Airbnb", useTab: nil, focusTab: nil),
-                Config.Rule(name: "general", url: "github\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Code", useTab: nil, focusTab: nil),
-                Config.Rule(name: "catchall", url: ".*", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: nil, focusTab: nil)
+                Config.Rule(name: "specific", url: "github\\.com/airbnb", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Airbnb", useTab: nil, focusTab: nil, followTab: nil),
+                Config.Rule(name: "general", url: "github\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Code", useTab: nil, focusTab: nil, followTab: nil),
+                Config.Rule(name: "catchall", url: ".*", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: nil, focusTab: nil, followTab: nil)
             ]
         )
 
@@ -252,8 +252,8 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "invalid", url: "[invalid(regex", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Test", useTab: nil, focusTab: nil),
-                Config.Rule(name: "catchall", url: ".*", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: nil, focusTab: nil)
+                Config.Rule(name: "invalid", url: "[invalid(regex", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Test", useTab: nil, focusTab: nil, followTab: nil),
+                Config.Rule(name: "catchall", url: ".*", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: nil, focusTab: nil, followTab: nil)
             ]
         )
 
@@ -271,9 +271,9 @@ final class RuleEngineTests: XCTestCase {
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
                 // Multiple domains with OR
-                Config.Rule(name: "work-domains", url: "(?i)(corp|jira|wiki)\\.example\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Work", useTab: nil, focusTab: nil),
+                Config.Rule(name: "work-domains", url: "(?i)(corp|jira|wiki)\\.example\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Work", useTab: nil, focusTab: nil, followTab: nil),
                 // Production-only pattern (matches app.myapp.com but not staging.myapp.com)
-                Config.Rule(name: "prod-only", url: "://app\\.myapp\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Prod", useTab: nil, focusTab: nil)
+                Config.Rule(name: "prod-only", url: "://app\\.myapp\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Prod", useTab: nil, focusTab: nil, followTab: nil)
             ]
         )
 
@@ -292,5 +292,100 @@ final class RuleEngineTests: XCTestCase {
 
         let action4 = engine.testMatch(url: URL(string: "https://staging.myapp.com/dashboard")!)
         XCTAssertNil(action4.matchedRule)  // Should not match since it's staging subdomain
+    }
+
+    // MARK: - followTab Tests
+
+    func testFollowTabPattern() {
+        let config = Config(
+            defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
+            rules: [
+                Config.Rule(name: "github", url: "github\\.com/([^/]+/[^/]+)", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: nil, focusTab: nil, followTab: "github\\.com/\\1")
+            ]
+        )
+
+        let engine = RuleEngine(config: config)
+        let action = engine.testMatch(url: URL(string: "https://github.com/anthropics/claude-code")!)
+
+        XCTAssertEqual(action.matchedRule, "github")
+        XCTAssertEqual(action.tabActions.count, 1)
+        XCTAssertEqual(action.tabActions.first?.kind, .follow)
+        // Captured group "anthropics/claude-code" is regex-escaped, so "/" becomes "\/"
+        XCTAssertEqual(action.tabActions.first?.pattern, "github\\.com/anthropics\\/claude-code")
+    }
+
+    func testMultipleTabActionsOrdering() {
+        // Test that multiple tab actions are ordered: focusTab → useTab → followTab
+        let config = Config(
+            defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
+            rules: [
+                Config.Rule(name: "github", url: "github\\.com/([^/]+/[^/]+)", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: "github\\.com/\\1/issues", focusTab: "github\\.com/\\1$", followTab: "github\\.com")
+            ]
+        )
+
+        let engine = RuleEngine(config: config)
+        let action = engine.testMatch(url: URL(string: "https://github.com/anthropics/claude-code")!)
+
+        XCTAssertEqual(action.matchedRule, "github")
+        XCTAssertEqual(action.tabActions.count, 3)
+        // Order should be: focus, use, follow
+        // Captured group "anthropics/claude-code" is regex-escaped, so "/" becomes "\/"
+        XCTAssertEqual(action.tabActions[0].kind, .focus)
+        XCTAssertEqual(action.tabActions[0].pattern, "github\\.com/anthropics\\/claude-code$")
+        XCTAssertEqual(action.tabActions[1].kind, .use)
+        XCTAssertEqual(action.tabActions[1].pattern, "github\\.com/anthropics\\/claude-code/issues")
+        XCTAssertEqual(action.tabActions[2].kind, .follow)
+        XCTAssertEqual(action.tabActions[2].pattern, "github\\.com")
+    }
+
+    func testNoTabActionsWhenNotSpecified() {
+        let config = Config(
+            defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
+            rules: [
+                Config.Rule(name: "github", url: "github\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Code", useTab: nil, focusTab: nil, followTab: nil)
+            ]
+        )
+
+        let engine = RuleEngine(config: config)
+        let action = engine.testMatch(url: URL(string: "https://github.com/user/repo")!)
+
+        XCTAssertEqual(action.matchedRule, "github")
+        XCTAssertTrue(action.tabActions.isEmpty)
+    }
+
+    func testSingleTabActionBackwardCompatibility() {
+        // Verify that specifying only useTab still works correctly
+        let config = Config(
+            defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
+            rules: [
+                Config.Rule(name: "docs", url: "docs\\.google\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: "docs\\.google\\.com", focusTab: nil, followTab: nil)
+            ]
+        )
+
+        let engine = RuleEngine(config: config)
+        let action = engine.testMatch(url: URL(string: "https://docs.google.com/document")!)
+
+        XCTAssertEqual(action.tabActions.count, 1)
+        XCTAssertEqual(action.tabActions.first?.kind, .use)
+    }
+
+    func testCaptureGroupsAreRegexEscaped() {
+        // Verify that regex metacharacters in captured groups are escaped
+        // so they match literally (e.g., "?" in query strings)
+        let config = Config(
+            defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
+            rules: [
+                Config.Rule(name: "pr-with-query", url: "github\\.com/([^/]+/[^/]+)/pull/(\\d+)(.*)", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: nil, focusTab: "github\\.com/\\1/pull/\\2\\3$", followTab: "github\\.com/\\1/pull/\\2")
+            ]
+        )
+
+        let engine = RuleEngine(config: config)
+        let action = engine.testMatch(url: URL(string: "https://github.com/user/repo/pull/123?foo=bar")!)
+
+        XCTAssertEqual(action.matchedRule, "pr-with-query")
+        XCTAssertEqual(action.tabActions.count, 2)
+        // The "?" should be escaped to "\?" so it matches literally
+        XCTAssertEqual(action.tabActions[0].pattern, "github\\.com/user\\/repo/pull/123\\?foo=bar$")
+        XCTAssertEqual(action.tabActions[1].pattern, "github\\.com/user\\/repo/pull/123")
     }
 }

@@ -44,35 +44,62 @@ class Executor {
 
     private func executeChromeAction(action: RouteAction, browserBundleId: String) throws {
         let url = action.rewrittenURL.absoluteString
+        let preferredWindow = action.windowTarget?.name ?? ""
 
-        // First, check for tab reuse if specified
-        if let tabAction = action.tabAction {
-            let preferredWindow = action.windowTarget?.name ?? ""
+        // Try each tab action in priority order (focusTab → useTab → followTab)
+        for tabAction in action.tabActions {
             if let tabInfo = chromeController.findTab(
                 matchingPattern: tabAction.pattern,
                 preferredWindow: preferredWindow,
                 bundleId: browserBundleId
             ) {
-                Logger.shared.log("Found matching tab in window '\(tabInfo.windowName)', focusing")
-                chromeController.focusTab(
-                    withWindowId: tabInfo.windowId,
-                    tabIndex: tabInfo.tabIndex,
-                    bundleId: browserBundleId
-                )
-                if tabAction.navigate {
-                    Logger.shared.log("Navigating tab to \(url)")
+                switch tabAction.kind {
+                case .focus:
+                    Logger.shared.log("Found matching tab in window '\(tabInfo.windowName)', focusing (focusTab)")
+                    chromeController.focusTab(
+                        withWindowId: tabInfo.windowId,
+                        tabIndex: tabInfo.tabIndex,
+                        bundleId: browserBundleId
+                    )
+                    return
+
+                case .use:
+                    Logger.shared.log("Found matching tab in window '\(tabInfo.windowName)', navigating (useTab)")
+                    chromeController.focusTab(
+                        withWindowId: tabInfo.windowId,
+                        tabIndex: tabInfo.tabIndex,
+                        bundleId: browserBundleId
+                    )
                     chromeController.navigateTab(
                         withWindowId: tabInfo.windowId,
                         tabId: tabInfo.tabId,
                         toURL: url,
                         bundleId: browserBundleId
                     )
+                    return
+
+                case .follow:
+                    Logger.shared.log("Found matching tab in window '\(tabInfo.windowName)', opening new tab in same window (followTab)")
+                    var error: NSError?
+                    let success = chromeController.openURL(
+                        url,
+                        inWindowWithId: tabInfo.windowId,
+                        bundleId: browserBundleId,
+                        error: &error
+                    )
+                    if !success {
+                        let message = error?.localizedDescription ?? "Unknown error"
+                        Logger.shared.log("Failed to open URL in window: \(message)")
+                        throw ExecutorError.scriptingError(message)
+                    }
+                    return
                 }
-                return
             }
+            // No match for this tab action - continue to next one
+            Logger.shared.log("No matching tab for pattern '\(tabAction.pattern)', trying next action")
         }
 
-        // If no window targeting specified, use browser's natural behavior
+        // No tab actions matched - fall through to window targeting or browser default
         guard let windowTarget = action.windowTarget else {
             Logger.shared.log("Opening URL with browser's default behavior")
             try openURLInBrowser(action.rewrittenURL, bundleId: browserBundleId)

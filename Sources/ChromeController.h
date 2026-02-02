@@ -39,6 +39,17 @@ NS_ASSUME_NONNULL_BEGIN
        bundleId:(NSString *)bundleId
           error:(NSError **)error NS_SWIFT_NOTHROW;
 
+/// Open a URL in a specific window identified by ID
+/// @param urlString The URL to open
+/// @param windowId The window ID (from ChromeTabInfo)
+/// @param bundleId The browser bundle ID (e.g., com.google.Chrome)
+/// @param error Error output
+/// @return YES on success
+- (BOOL)openURL:(NSString *)urlString
+  inWindowWithId:(NSString *)windowId
+       bundleId:(NSString *)bundleId
+          error:(NSError **)error NS_SWIFT_NOTHROW;
+
 /// Find a tab matching a regex pattern
 /// @param pattern Regex pattern to match against tab URLs
 /// @param preferredWindow Preferred window name (optional)
