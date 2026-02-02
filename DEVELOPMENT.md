@@ -121,7 +121,7 @@ Chrome automation uses Objective-C Scripting Bridge rather than AppleScript stri
 Key points:
 - Windows are targeted by `givenName` property (persists independently of tab titles)
 - Must use `objectWithID:` to get stable references for windows and tabs
-- Tab reuse (`useTab`/`focusTab`) uses regex matching against tab URLs
+- Tab actions (`useTab`/`focusTab`/`followTab`) use regex matching against tab URLs
 
 ## Troubleshooting
 
@@ -134,6 +134,12 @@ Key points:
    tccutil reset AppleEvents dev.tabzilla.Tabzilla
    make kill && make run
    ```
+
+### sourceWindowTitle shows "unknown"
+
+1. Check **System Settings → Privacy & Security → Accessibility**
+2. Ensure Tabzilla is listed and toggled ON
+3. If reinstalled, remove Tabzilla from the list and re-add it (permissions can become stale)
 
 ### Enable logging
 
