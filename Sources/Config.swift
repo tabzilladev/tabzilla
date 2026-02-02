@@ -28,6 +28,7 @@ struct Config: Codable {
         let window: String?
         let useTab: String?
         let focusTab: String?
+        let followTab: String?
     }
 
     struct LoggingConfig: Codable {

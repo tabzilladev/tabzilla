@@ -91,6 +91,44 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
     return YES;
 }
 
+- (BOOL)openURL:(NSString *)urlString
+  inWindowWithId:(NSString *)windowId
+       bundleId:(NSString *)bundleId
+          error:(NSError **)error {
+
+    ChromeApplication *chrome = [self chromeAppForBundleId:bundleId];
+    if (!chrome) {
+        if (error) {
+            *error = [NSError errorWithDomain:TabzillaErrorDomain
+                                         code:1
+                                     userInfo:@{NSLocalizedDescriptionKey: @"Chrome not available"}];
+        }
+        return NO;
+    }
+
+    // Get window by ID for stable reference
+    ChromeWindow *targetWindow = (ChromeWindow *)[[chrome windows] objectWithID:windowId];
+    if (!targetWindow) {
+        if (error) {
+            *error = [NSError errorWithDomain:TabzillaErrorDomain
+                                         code:2
+                                     userInfo:@{NSLocalizedDescriptionKey: @"Window not found"}];
+        }
+        return NO;
+    }
+
+    // Bring window to front and activate Chrome
+    [targetWindow setIndex:1];
+    [chrome activate];
+
+    // Create new tab in target window
+    ChromeTab *newTab = [[[chrome classForScriptingClass:@"tab"] alloc] init];
+    [[targetWindow tabs] addObject:newTab];
+    [newTab setURL:urlString];
+
+    return YES;
+}
+
 - (nullable ChromeTabInfo *)findTabMatchingPattern:(NSString *)pattern
                                    preferredWindow:(nullable NSString *)preferredWindow
                                           bundleId:(NSString *)bundleId {

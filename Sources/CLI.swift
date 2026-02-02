@@ -83,9 +83,17 @@ extension CLI {
                 if let window = action.windowTarget {
                     print("Window:       \(window.name)")
                 }
-                if let tab = action.tabAction {
-                    let tabType = tab.navigate ? "useTab" : "focusTab"
-                    print("Tab Action:   \(tabType) pattern=\"\(tab.pattern)\"")
+                if !action.tabActions.isEmpty {
+                    let tabDescriptions = action.tabActions.map { tab -> String in
+                        let tabType: String
+                        switch tab.kind {
+                        case .focus: tabType = "focusTab"
+                        case .use: tabType = "useTab"
+                        case .follow: tabType = "followTab"
+                        }
+                        return "\(tabType)=\"\(tab.pattern)\""
+                    }
+                    print("Tab Actions:  \(tabDescriptions.joined(separator: " -> "))")
                 }
                 print("Final URL:    \(action.rewrittenURL)")
                 print("Config:       \(configPath ?? "default")")
@@ -175,9 +183,17 @@ extension CLI {
             if let window = action.windowTarget {
                 print("  Window:       \(window.name)")
             }
-            if let tab = action.tabAction {
-                let tabType = tab.navigate ? "useTab" : "focusTab"
-                print("  Tab Action:   \(tabType) pattern=\"\(tab.pattern)\"")
+            if !action.tabActions.isEmpty {
+                let tabDescriptions = action.tabActions.map { tab -> String in
+                    let tabType: String
+                    switch tab.kind {
+                    case .focus: tabType = "focusTab"
+                    case .use: tabType = "useTab"
+                    case .follow: tabType = "followTab"
+                    }
+                    return "\(tabType)=\"\(tab.pattern)\""
+                }
+                print("  Tab Actions:  \(tabDescriptions.joined(separator: " -> "))")
             }
             print("  Final URL:    \(action.rewrittenURL)")
 
