@@ -205,6 +205,15 @@ class FileWatcher {
     }
 }
 
+// MARK: - Shared Paths
+
+enum TabzillaPaths {
+    static var pidFile: String {
+        let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        return supportDir.appendingPathComponent("Tabzilla/tabz.pid").path
+    }
+}
+
 // MARK: - Logger
 
 @objc class Logger: NSObject {
@@ -212,6 +221,11 @@ class FileWatcher {
 
     private var logEnabled = false
     private var logPath: String?
+
+    private static let dateFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        return formatter
+    }()
 
     private override init() {}
 
@@ -230,7 +244,7 @@ class FileWatcher {
     }
 
     @objc func log(_ message: String) {
-        let timestamp = ISO8601DateFormatter().string(from: Date())
+        let timestamp = Self.dateFormatter.string(from: Date())
         let logMessage = "[\(timestamp)] \(message)\n"
 
         // Always log to stderr for debugging
@@ -246,7 +260,7 @@ class FileWatcher {
                 if let handle = FileHandle(forWritingAtPath: expandedPath) {
                     handle.seekToEndOfFile()
                     handle.write(data)
-                    handle.closeFile()
+                    try? handle.close()
                 }
             } else {
                 FileManager.default.createFile(atPath: expandedPath, contents: data)
