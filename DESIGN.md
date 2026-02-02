@@ -24,9 +24,13 @@ Tabzilla is a native macOS application that registers as the system's default br
 ## Technical Architecture
 
 ### Default Browser Registration
-- **Info.plist**: Declares `CFBundleURLTypes` with `http` and `https` schemes
+- **Info.plist**: Declares `CFBundleURLTypes` with `http`, `https`, and `file` schemes
 - **URL Handling**: `NSAppleEventManager` handler for `kAEGetURL` events
-- **Document Types**: `CFBundleDocumentTypes` for `public.html`/`public.xhtml` (required to appear in default browser picker)
+- **Document Types**: `CFBundleDocumentTypes` for:
+  - `public.html`/`public.xhtml` (required to appear in default browser picker)
+  - `com.apple.internet-location` (`.webloc` files)
+  - `com.microsoft.internet-shortcut` (`.url` files)
+- **Shortcut Files**: `.webloc` and `.url` files are delegated directly to the default browser (bypass rule matching)
 - **Background Agent**: `LSUIElement = true` (no dock icon)
 
 ### Browser Control
@@ -37,6 +41,7 @@ Tabzilla is a native macOS application that registers as the system's default br
 | Open in named window | Scripting Bridge `givenName` + `objectWithID:` | Works |
 | Tab reuse (useTab) | Find tab by URL regex, navigate to new URL | Works |
 | Tab focus (focusTab) | Find tab by URL regex, focus without navigating | Works |
+| Tab follow (followTab) | Find tab by URL regex, open new tab in same window | Works |
 | Query window's profile | Not exposed in Scripting Bridge | Not possible |
 | Open in tab group | Chrome Extension API only | Not in MVP |
 
@@ -98,12 +103,10 @@ rules:
   # Slack workspace routing
   - sourceApp: ^com\.tinyspeck\.slackmacgap$
     sourceWindowTitle: (?i)work
-    browser: com.google.Chrome.beta
     window: Work
 
   # Domain-based routing
   - url: (?i)corp\.example\.com
-    browser: com.google.Chrome.beta
     window: Work
 
   # Tab reuse for Google Docs
@@ -124,9 +127,10 @@ logging:
 - All conditions are AND'ed; omitted conditions match anything
 - Rules evaluated in order; first match wins
 
-### Tab Reuse
+### Tab Actions
 - `useTab: <pattern>` - Find matching tab, focus it, navigate to new URL
 - `focusTab: <pattern>` - Find matching tab, focus it without navigating
+- `followTab: <pattern>` - Find matching tab, open new URL in a new tab in the same window
 - Use `\1`, `\2` to reference capture groups from URL pattern
 
 ## CLI Commands
@@ -142,8 +146,9 @@ logging:
 ## Permissions Required
 
 1. **Automation**: System Settings → Privacy & Security → Automation → Tabzilla → Google Chrome
-2. After reinstalling, permission must be re-granted (macOS tracks by code signature)
-3. Reset with: `tccutil reset AppleEvents dev.tabzilla.Tabzilla`
+2. **Accessibility**: System Settings → Privacy & Security → Accessibility → Tabzilla (required for `sourceWindowTitle` matching)
+3. After reinstalling, permissions must be re-granted (macOS tracks by code signature)
+4. Reset Automation with: `tccutil reset AppleEvents dev.tabzilla.Tabzilla`
 
 ## Key Implementation Decisions
 
