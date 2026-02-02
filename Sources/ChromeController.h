@@ -50,6 +50,11 @@ NS_ASSUME_NONNULL_BEGIN
        bundleId:(NSString *)bundleId
           error:(NSError **)error NS_SWIFT_NOTHROW;
 
+/// Fetch all tabs for a browser (for caching during multi-action routing)
+/// @param bundleId The browser bundle ID
+/// @return Array of ChromeTabInfo objects, or nil if browser unavailable
+- (nullable NSArray<ChromeTabInfo *> *)getAllTabsForBundleId:(NSString *)bundleId;
+
 /// Find a tab matching a regex pattern
 /// @param pattern Regex pattern to match against tab URLs
 /// @param preferredWindow Preferred window name (optional)
@@ -58,6 +63,17 @@ NS_ASSUME_NONNULL_BEGIN
 - (nullable ChromeTabInfo *)findTabMatchingPattern:(NSString *)pattern
                                    preferredWindow:(nullable NSString *)preferredWindow
                                           bundleId:(NSString *)bundleId;
+
+/// Find a tab matching a regex pattern using a pre-fetched tab cache
+/// @param pattern Regex pattern to match against tab URLs
+/// @param preferredWindow Preferred window name (optional)
+/// @param bundleId The browser bundle ID (used only if cachedTabs is nil)
+/// @param cachedTabs Pre-fetched tabs from getAllTabsForBundleId: (optional - if nil, fetches fresh)
+/// @return Tab info if found, nil otherwise
+- (nullable ChromeTabInfo *)findTabMatchingPattern:(NSString *)pattern
+                                   preferredWindow:(nullable NSString *)preferredWindow
+                                          bundleId:(NSString *)bundleId
+                                      fromTabCache:(nullable NSArray<ChromeTabInfo *> *)cachedTabs;
 
 /// Focus a specific tab
 /// @param windowId Window ID from ChromeTabInfo

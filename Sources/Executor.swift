@@ -46,12 +46,18 @@ class Executor {
         let url = action.rewrittenURL.absoluteString
         let preferredWindow = action.windowTarget?.name ?? ""
 
+        // Fetch tab cache once for all tab actions (avoids repeated IPC calls)
+        let tabCache: [ChromeTabInfo]? = action.tabActions.isEmpty
+            ? nil
+            : chromeController.getAllTabs(forBundleId: browserBundleId)
+
         // Try each tab action in priority order (focusTab → useTab → followTab)
         for tabAction in action.tabActions {
             if let tabInfo = chromeController.findTab(
                 matchingPattern: tabAction.pattern,
                 preferredWindow: preferredWindow,
-                bundleId: browserBundleId
+                bundleId: browserBundleId,
+                fromTabCache: tabCache
             ) {
                 switch tabAction.kind {
                 case .focus:

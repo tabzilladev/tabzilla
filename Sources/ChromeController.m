@@ -129,12 +129,62 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
     return YES;
 }
 
+- (nullable NSArray<ChromeTabInfo *> *)getAllTabsForBundleId:(NSString *)bundleId {
+    ChromeApplication *chrome = [self chromeAppForBundleId:bundleId];
+    if (!chrome) return nil;
+
+    // Check if browser is running
+    if (![chrome isRunning]) return @[];
+
+    NSMutableArray<ChromeTabInfo *> *allTabs = [NSMutableArray array];
+
+    // Batch fetch window properties (1 IPC call per property across all windows)
+    SBElementArray<ChromeWindow *> *windows = chrome.windows;
+    NSArray *windowIds = [windows valueForKey:@"id"];
+    NSArray *windowNames = [windows valueForKey:@"givenName"];
+
+    // For each window, batch fetch tab properties (2 IPC calls per window)
+    NSInteger windowIndex = 0;
+    for (ChromeWindow *window in windows) {
+        NSString *windowId = windowIds[windowIndex];
+        NSString *windowName = windowNames[windowIndex];
+        if ([windowName isEqual:[NSNull null]]) windowName = @"";
+
+        SBElementArray<ChromeTab *> *tabs = window.tabs;
+        NSArray *tabIds = [tabs valueForKey:@"id"];
+        NSArray *tabURLs = [tabs valueForKey:@"URL"];
+
+        for (NSInteger tabIndex = 0; tabIndex < tabIds.count; tabIndex++) {
+            ChromeTabInfo *info = [[ChromeTabInfo alloc] init];
+            info.windowId = windowId;
+            info.tabId = tabIds[tabIndex];
+            info.windowIndex = 0;
+            info.tabIndex = tabIndex + 1;  // 1-based for activeTabIndex
+            info.windowName = windowName;
+            NSString *url = tabURLs[tabIndex];
+            info.tabURL = [url isEqual:[NSNull null]] ? @"" : url;
+            [allTabs addObject:info];
+        }
+        windowIndex++;
+    }
+
+    return allTabs;
+}
+
 - (nullable ChromeTabInfo *)findTabMatchingPattern:(NSString *)pattern
                                    preferredWindow:(nullable NSString *)preferredWindow
                                           bundleId:(NSString *)bundleId {
+    // Delegate to cache-aware method with no cache (will fetch fresh)
+    return [self findTabMatchingPattern:pattern
+                        preferredWindow:preferredWindow
+                               bundleId:bundleId
+                           fromTabCache:nil];
+}
 
-    ChromeApplication *chrome = [self chromeAppForBundleId:bundleId];
-    if (!chrome) return nil;
+- (nullable ChromeTabInfo *)findTabMatchingPattern:(NSString *)pattern
+                                   preferredWindow:(nullable NSString *)preferredWindow
+                                          bundleId:(NSString *)bundleId
+                                      fromTabCache:(nullable NSArray<ChromeTabInfo *> *)cachedTabs {
 
     NSError *regexError = nil;
     NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:pattern
@@ -145,46 +195,32 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
         return nil;
     }
 
-    NSMutableArray<ChromeTabInfo *> *matches = [NSMutableArray array];
+    // Use cached tabs if provided, otherwise fetch fresh
+    NSArray<ChromeTabInfo *> *tabs = cachedTabs ?: [self getAllTabsForBundleId:bundleId];
+    if (!tabs) return nil;
 
-    for (ChromeWindow *window in chrome.windows) {
-        NSString *windowId = [window id];
-        NSString *windowName = window.givenName ?: @"";
-
-        NSInteger tabIndex = 1;
-        for (ChromeTab *tab in window.tabs) {
-            NSString *tabId = [tab id];
-            NSString *tabURL = tab.URL ?: @"";
-            NSRange range = NSMakeRange(0, tabURL.length);
-
-            if ([regex firstMatchInString:tabURL options:0 range:range]) {
-                ChromeTabInfo *info = [[ChromeTabInfo alloc] init];
-                info.windowId = windowId;
-                info.tabId = tabId;
-                info.windowIndex = 0;  // Not used anymore
-                info.tabIndex = tabIndex;  // Still useful for activeTabIndex
-                info.windowName = windowName;
-                info.tabURL = tabURL;
-                [matches addObject:info];
-            }
-            tabIndex++;
-        }
-    }
-
-    if (matches.count == 0) return nil;
-
-    // Apply tie-breakers
-    // 1. Prefer tabs in windows matching preferredWindow (case-insensitive exact match)
-    if (preferredWindow) {
-        for (ChromeTabInfo *info in matches) {
+    // Early termination optimization: if preferredWindow is specified,
+    // search that window first and return immediately on match
+    if (preferredWindow && preferredWindow.length > 0) {
+        for (ChromeTabInfo *info in tabs) {
             if ([info.windowName caseInsensitiveCompare:preferredWindow] == NSOrderedSame) {
-                return info;
+                NSRange range = NSMakeRange(0, info.tabURL.length);
+                if ([regex firstMatchInString:info.tabURL options:0 range:range]) {
+                    return info;
+                }
             }
         }
     }
 
-    // 2. Return first match
-    return matches.firstObject;
+    // Search all tabs for first match
+    for (ChromeTabInfo *info in tabs) {
+        NSRange range = NSMakeRange(0, info.tabURL.length);
+        if ([regex firstMatchInString:info.tabURL options:0 range:range]) {
+            return info;
+        }
+    }
+
+    return nil;
 }
 
 - (void)focusTabWithWindowId:(NSString *)windowId
@@ -232,27 +268,41 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
 
     NSMutableArray<NSDictionary *> *result = [NSMutableArray array];
 
-    for (ChromeWindow *window in chrome.windows) {
-        NSString *windowId = [window id];
-        NSString *givenName = window.givenName ?: @"";
-        NSInteger activeTabIdx = window.activeTabIndex;
+    // Batch fetch window properties (1 IPC call per property across all windows)
+    SBElementArray<ChromeWindow *> *windows = chrome.windows;
+    NSArray *windowIds = [windows valueForKey:@"id"];
+    NSArray *givenNames = [windows valueForKey:@"givenName"];
+    NSArray *activeTabIndices = [windows valueForKey:@"activeTabIndex"];
+
+    NSInteger windowIndex = 0;
+    for (ChromeWindow *window in windows) {
+        NSString *windowId = windowIds[windowIndex];
+        NSString *givenName = givenNames[windowIndex];
+        if ([givenName isEqual:[NSNull null]]) givenName = @"";
+        NSInteger activeTabIdx = [activeTabIndices[windowIndex] integerValue];
+
+        // Batch fetch all tab properties for this window
+        SBElementArray<ChromeTab *> *tabsArray = window.tabs;
+        NSArray *tabIds = [tabsArray valueForKey:@"id"];
+        NSArray *tabURLs = [tabsArray valueForKey:@"URL"];
+        NSArray *tabTitles = [tabsArray valueForKey:@"title"];
 
         NSMutableArray<NSDictionary *> *tabs = [NSMutableArray array];
-        NSInteger tabIndex = 1;
-        for (ChromeTab *tab in window.tabs) {
-            NSString *tabId = [tab id];
-            NSString *tabURL = tab.URL ?: @"";
-            NSString *tabTitle = tab.title ?: @"";
-            BOOL isActive = (tabIndex == activeTabIdx);
+        for (NSInteger tabIndex = 0; tabIndex < tabIds.count; tabIndex++) {
+            NSString *tabId = tabIds[tabIndex];
+            NSString *tabURL = tabURLs[tabIndex];
+            NSString *tabTitle = tabTitles[tabIndex];
+            if ([tabURL isEqual:[NSNull null]]) tabURL = @"";
+            if ([tabTitle isEqual:[NSNull null]]) tabTitle = @"";
+            BOOL isActive = (tabIndex + 1 == activeTabIdx);
 
             [tabs addObject:@{
                 @"id": tabId ?: @"",
-                @"index": @(tabIndex),
+                @"index": @(tabIndex + 1),
                 @"url": tabURL,
                 @"title": tabTitle,
                 @"active": @(isActive)
             }];
-            tabIndex++;
         }
 
         [result addObject:@{
@@ -261,6 +311,7 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
             @"tabCount": @(tabs.count),
             @"tabs": tabs
         }];
+        windowIndex++;
     }
 
     return result;
