@@ -126,6 +126,55 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(paths[2], "\(home)/.tabz.yaml")
     }
 
+    // MARK: - ConfigurationManager File Loading
+
+    func testLoadConfigFromValidFile() throws {
+        let yaml = """
+        version: 1
+        defaults:
+          browser: com.google.Chrome.beta
+          window: TestWindow
+        rules:
+          - name: test-rule
+            url: example\\.com
+            window: Example
+        """
+
+        let tempDir = FileManager.default.temporaryDirectory
+        let configPath = tempDir.appendingPathComponent("tabz-test-\(UUID().uuidString).yaml")
+        try yaml.write(to: configPath, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: configPath) }
+
+        let config = try ConfigurationManager.loadConfig(from: configPath.path)
+
+        XCTAssertEqual(config.version, 1)
+        XCTAssertEqual(config.defaults.browser, "com.google.Chrome.beta")
+        XCTAssertEqual(config.defaults.window, "TestWindow")
+        XCTAssertEqual(config.rules.count, 1)
+        XCTAssertEqual(config.rules[0].name, "test-rule")
+    }
+
+    func testLoadConfigFromInvalidFileThrows() throws {
+        let invalidYaml = """
+        version: 1
+        defaults:
+          browser: [malformed yaml
+        """
+
+        let tempDir = FileManager.default.temporaryDirectory
+        let configPath = tempDir.appendingPathComponent("tabz-test-\(UUID().uuidString).yaml")
+        try invalidYaml.write(to: configPath, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: configPath) }
+
+        XCTAssertThrowsError(try ConfigurationManager.loadConfig(from: configPath.path))
+    }
+
+    func testLoadConfigFromNonexistentFileThrows() {
+        let bogusPath = "/tmp/tabz-nonexistent-\(UUID().uuidString).yaml"
+
+        XCTAssertThrowsError(try ConfigurationManager.loadConfig(from: bogusPath))
+    }
+
     // MARK: - Invalid Config Handling
 
     func testInvalidYAML() {
