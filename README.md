@@ -16,9 +16,7 @@ A native macOS application that registers as the system's default browser and ro
 
 ## Installation
 
-<!-- TODO: Add Homebrew tap or pre-built release downloads -->
-
-For now, see [DEVELOPMENT.md](DEVELOPMENT.md) to build from source.
+See [DEVELOPMENT.md](DEVELOPMENT.md) to build from source.
 
 After installing, set Tabzilla as your default browser:
 
@@ -33,7 +31,27 @@ Tabzilla searches for configuration in these locations (first found wins):
 2. `~/Library/Application Support/Tabzilla/config.yaml`
 3. `~/.tabz.yaml`
 
-### Example Configuration
+### Quick Start
+
+```yaml
+version: 1
+
+defaults:
+  browser: com.google.Chrome
+
+rules:
+  # Work links open in a dedicated "Work" window
+  - name: work
+    url: (?i)corp\.example\.com|jira\.example\.com
+    window: Work
+
+  # Everything else uses browser's default behavior
+  - url: .*
+```
+
+Chrome windows are identified by their **given name** (set via Menu Bar → Window → Name Window), which is distinct from the window title. If no window with the specified name exists, Tabzilla creates one.
+
+### Full Example
 
 ```yaml
 version: 1
@@ -43,17 +61,15 @@ defaults:
   # window: Default  # Optional: omit to let the browser decide
 
 rules:
-  # Route work Slack links to Chrome Beta
+  # Route work Slack links to Work window
   - name: work-slack
     sourceApp: ^com\.tinyspeck\.slackmacgap$
     sourceWindowTitle: (?i)work
-    browser: com.google.Chrome.beta
     window: Work
 
   # Route work domains
   - name: work-domains
     url: (?i)corp\.example\.com|jira\.example\.com
-    browser: com.google.Chrome.beta
     window: Work
 
   # GitHub PRs in dedicated window
@@ -85,12 +101,13 @@ All matching uses ICU regex (NSRegularExpression). Rules are evaluated in order;
 **Actions**:
 - `browser` - Bundle ID of target browser (default: `com.google.Chrome`)
 - `window` - Name of target browser window (optional; omit to let browser decide)
-- `useTab` - Regex to find existing tab; focus and navigate
-- `focusTab` - Regex to find existing tab; focus only (don't navigate)
+- `useTab` - Find existing tab matching regex; focus it and navigate to the new URL
+- `focusTab` - Find existing tab matching regex; focus it only (ignore incoming URL)
+- `followTab` - Find existing tab matching regex; open new URL in a new tab in the same window
 
 **Regex features**:
 - `(?i)` - Case-insensitive matching
-- `\1`, `\2` - Capture group references in `useTab`/`focusTab` patterns
+- `\1`, `\2` - Capture group references in `useTab`/`focusTab`/`followTab` patterns
 - Full ICU regex support (lookahead, lookbehind, etc.)
 
 ## CLI Usage
@@ -123,23 +140,51 @@ tabz quit
 
 3. **Rule Matching**: The URL and source info are matched against rules in order. First match wins.
 
-4. **Window Targeting**: Chrome windows are identified by their name (Menu Bar > Window > Name Window ...), which is distinct from the window title. If no matching window exists, one is created.
+4. **Window Targeting**: Chrome windows are identified by their **given name** (Menu Bar → Window → Name Window), which is distinct from the window title. If no matching window exists, one is created.
 
-5. **Tab Reuse**: If `useTab` or `focusTab` is specified, existing tabs are searched before opening a new one.
+5. **Tab Handling**: If `useTab`, `focusTab`, or `followTab` is specified, existing tabs are searched. Depending on the action, Tabzilla will focus the tab, navigate it, or open a new tab in the same window.
 
 ## Browser Support
 
-Currently supports Chrome-based browsers:
+**Full support** (window naming, tab reuse):
 - `com.google.Chrome` - Google Chrome
 - `com.google.Chrome.beta` - Google Chrome Beta
 
-Other browsers can be targeted but won't support window naming or tab reuse.
+**Basic support** (URL opening only):
+- `com.apple.Safari` - Safari
+- `org.mozilla.firefox` - Firefox
+- `company.thebrowser.Browser` - Arc
+- `com.brave.Browser` - Brave
+- `com.microsoft.edgemac` - Microsoft Edge
 
 ## Permissions
 
-Tabzilla requires **Automation** permission to control browsers. On first use, macOS will prompt you to allow Tabzilla to control Google Chrome (or other browsers).
+Tabzilla requires the following macOS permissions:
+
+- **Automation** - Required to control Chrome (window/tab management). macOS prompts on first use.
+- **Accessibility** - Required for `sourceWindowTitle` matching. Grant in System Settings → Privacy & Security → Accessibility.
+
+If permissions become stale after reinstalling, remove Tabzilla from the permission list and re-add it.
 
 ## Troubleshooting
+
+```bash
+# Create an alias for convenience
+alias tabz='/Applications/Tabzilla.app/Contents/MacOS/Tabzilla'
+```
+
+**Check daemon status and config validity**:
+```bash
+tabz status
+```
+
+This shows whether the daemon is running, which config file is loaded, and any configuration errors.
+
+**Test rule matching** without opening a browser:
+```bash
+tabz test "https://example.com"
+tabz test "https://example.com" --source-app "com.tinyspeck.slackmacgap"
+```
 
 **Enable logging** for debugging:
 
@@ -152,11 +197,6 @@ logging:
 **View logs**:
 ```bash
 tail -f ~/Library/Logs/Tabzilla/tabz.log
-```
-
-**Check if daemon is running**:
-```bash
-tabz status
 ```
 
 ## Development
