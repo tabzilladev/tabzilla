@@ -134,7 +134,7 @@ tabz quit
 
 ## How It Works
 
-1. **URL Reception**: Tabzilla registers for `http`, `https`, and `file` URL schemes. When the user clicks a link, macOS sends an Apple Event to Tabzilla. It also handles `.webloc` and `.url` shortcut files (delegated directly to the default browser).
+1. **URL Reception**: Tabzilla registers for `http`, `https`, `file`, `chrome`, and `chrome-extension` URL schemes. When the user clicks a link, macOS sends an Apple Event to Tabzilla. It also handles `.webloc` and `.url` shortcut files (delegated directly to the default browser).
 
 2. **Source Detection**: Tabzilla captures the source app's bundle ID and attempts to read the frontmost window title (for Slack workspace detection, etc.).
 

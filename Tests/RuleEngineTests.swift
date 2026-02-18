@@ -369,6 +369,86 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertEqual(action.tabActions.first?.kind, .use)
     }
 
+    // MARK: - Chrome URL Scheme Matching
+
+    func testChromeURLMatch() {
+        let config = Config(
+            defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
+            rules: [
+                Config.Rule(name: "chrome-internal", url: "^chrome://", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Settings", useTab: nil, focusTab: nil, followTab: nil)
+            ]
+        )
+
+        let engine = RuleEngine(config: config)
+        let action = engine.testMatch(url: URL(string: "chrome://newtab")!)
+
+        XCTAssertEqual(action.matchedRule, "chrome-internal")
+        XCTAssertEqual(action.windowTarget?.name, "Settings")
+    }
+
+    func testChromeURLNoMatchDifferentPage() {
+        let config = Config(
+            defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
+            rules: [
+                Config.Rule(name: "chrome-settings", url: "^chrome://settings", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Settings", useTab: nil, focusTab: nil, followTab: nil)
+            ]
+        )
+
+        let engine = RuleEngine(config: config)
+        let action = engine.testMatch(url: URL(string: "chrome://newtab")!)
+
+        XCTAssertNil(action.matchedRule)
+    }
+
+    func testChromeSettingsWithUseTab() {
+        let config = Config(
+            defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
+            rules: [
+                Config.Rule(name: "chrome-settings", url: "^chrome://settings", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: "chrome://settings", focusTab: nil, followTab: nil)
+            ]
+        )
+
+        let engine = RuleEngine(config: config)
+        let action = engine.testMatch(url: URL(string: "chrome://settings")!)
+
+        XCTAssertEqual(action.matchedRule, "chrome-settings")
+        XCTAssertEqual(action.tabActions.count, 1)
+        XCTAssertEqual(action.tabActions.first?.kind, .use)
+        XCTAssertEqual(action.tabActions.first?.pattern, "chrome://settings")
+    }
+
+    func testChromeExtensionURLMatch() {
+        let config = Config(
+            defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
+            rules: [
+                Config.Rule(name: "extension", url: "^chrome-extension://", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Extensions", useTab: nil, focusTab: nil, followTab: nil)
+            ]
+        )
+
+        let engine = RuleEngine(config: config)
+        let action = engine.testMatch(url: URL(string: "chrome-extension://abcdef1234567890/options.html")!)
+
+        XCTAssertEqual(action.matchedRule, "extension")
+        XCTAssertEqual(action.windowTarget?.name, "Extensions")
+    }
+
+    func testCatchAllMatchesChromeURLs() {
+        let config = Config(
+            defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
+            rules: [
+                Config.Rule(name: "catchall", url: ".*", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: nil, focusTab: nil, followTab: nil)
+            ]
+        )
+
+        let engine = RuleEngine(config: config)
+
+        let action1 = engine.testMatch(url: URL(string: "chrome://newtab")!)
+        XCTAssertEqual(action1.matchedRule, "catchall")
+
+        let action2 = engine.testMatch(url: URL(string: "chrome-extension://abc/page.html")!)
+        XCTAssertEqual(action2.matchedRule, "catchall")
+    }
+
     func testCaptureGroupsAreRegexEscaped() {
         // Verify that regex metacharacters in captured groups are escaped
         // so they match literally (e.g., "?" in query strings)

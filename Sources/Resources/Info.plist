@@ -62,6 +62,26 @@
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>Chrome Internal URL</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>chrome</string>
+			</array>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>Chrome Extension URL</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>chrome-extension</string>
+			</array>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+		</dict>
 	</array>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Tabzilla needs to send Apple Events to control browsers for URL routing.</string>
