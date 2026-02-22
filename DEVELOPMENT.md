@@ -73,20 +73,20 @@ tail -f ~/Library/Logs/Tabzilla/tabz.log  # Watch logs
 ```
 tabzilla/
 ├── Package.swift                   # SPM config (macOS 13+, ArgumentParser, Yams)
-├── Tabzilla.xcodeproj/               # Xcode project for app bundle
+├── Tabzilla.xcodeproj/             # Xcode project for app bundle
 ├── Makefile                        # Build/test/install workflow
 ├── Sources/
-│   ├── TabzillaApp.swift             # App entry, AppDelegate, URL handling
+│   ├── TabzillaApp.swift           # App entry, AppDelegate, URL handling
 │   ├── CLI.swift                   # test/status/reload/quit/open subcommands
 │   ├── Config.swift                # YAML models, ConfigurationManager, FileWatcher, Logger
 │   ├── RuleEngine.swift            # RouteRequest → RouteAction matching
 │   ├── Executor.swift              # Browser control via Scripting Bridge
 │   ├── Chrome.h                    # Generated Scripting Bridge header
 │   ├── ChromeController.h/.m       # Chrome automation (Objective-C)
-│   ├── Tabzilla-Bridging-Header.h    # Swift/Obj-C bridging
+│   ├── Tabzilla-Bridging-Header.h  # Swift/Obj-C bridging
 │   └── Resources/
 │       ├── Info.plist              # URL schemes, document types
-│       ├── Tabzilla.entitlements     # Apple Events permission
+│       ├── Tabzilla.entitlements   # Apple Events permission
 │       └── DefaultConfig.yaml
 ├── Tests/
 │   ├── RuleEngineTests.swift       # Rule matching tests
@@ -101,10 +101,10 @@ tabzilla/
 
 ```
 URL Click → Apple Event → RouteRequest → RuleEngine → RouteAction → Executor → [Scripting Bridge] → Browser
-          ╰─── macOS ──╯╰─────────────────────────── Tabzilla ───────────────────────╯
+          ╰─── macOS ──╯╰─────────────────────────── Tabzilla ─────────────────────────╯
 
 Shortcut files (.webloc/.url) → Apple Event → Delegate to default: browser (bypass rules)
-          ╰──────────── macOS ─────────────╯╰──────────────── Tabzilla ───────────────────╯
+          ╰──────────── macOS ─────────────╯╰──────────────── Tabzilla ─────────────────────╯
 ```
 
 ### Key Components
