@@ -2,7 +2,7 @@ import Foundation
 import AppKit
 
 /// Executes route actions by controlling browsers
-class Executor {
+struct Executor {
 
     enum ExecutorError: Error, LocalizedError {
         case browserNotFound(String)

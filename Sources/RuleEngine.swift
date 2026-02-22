@@ -37,7 +37,7 @@ struct TabAction {
 
 // MARK: - Rule Engine
 
-class RuleEngine {
+struct RuleEngine {
     private let config: Config
 
     init(config: Config) {
