@@ -154,7 +154,6 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
             ChromeTabInfo *info = [[ChromeTabInfo alloc] init];
             info.windowId = windowId;
             info.tabId = tabIds[tabIndex];
-            info.windowIndex = 0;
             info.tabIndex = tabIndex + 1;  // 1-based for activeTabIndex
             info.windowName = windowName;
             NSString *url = tabURLs[tabIndex];
