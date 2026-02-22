@@ -244,6 +244,84 @@ extension CLI {
     }
 }
 
+// MARK: - Dump Output Types
+
+private struct DumpOutput: Encodable {
+    let timestamp: String
+    let daemon: DaemonState
+    let config: ConfigState
+    let browsers: [BrowserState]
+}
+
+private struct DaemonState: Encodable {
+    let running: Bool
+    let pid: pid_t?
+}
+
+private struct ConfigState: Encodable {
+    let searchPaths: [String]
+    let path: String?
+    let valid: Bool
+    let version: Int?
+    let ruleCount: Int?
+    let defaults: DefaultsState?
+    let logging: LoggingState?
+    let error: String?
+}
+
+private struct DefaultsState: Encodable {
+    let browser: String
+    let window: String?
+}
+
+private struct LoggingState: Encodable {
+    let enabled: Bool
+    let path: String?
+}
+
+private struct BrowserState: Encodable {
+    let bundleId: String
+    let installed: Bool
+    let supportsScriptingBridge: Bool
+    let running: Bool?
+    let windowCount: Int?
+    let windows: [WindowState]?
+    let error: String?
+}
+
+private struct WindowState: Encodable {
+    let id: String
+    let givenName: String
+    let tabCount: Int
+    let tabs: [TabState]
+}
+
+private struct TabState: Encodable {
+    let id: String
+    let index: Int
+    let url: String
+    let title: String
+    let active: Bool
+}
+
+private func convertWindows(_ rawWindows: [NSDictionary]) -> [WindowState] {
+    return rawWindows.compactMap { w in
+        guard let id = w["id"] as? String,
+              let givenName = w["givenName"] as? String,
+              let tabCount = w["tabCount"] as? Int,
+              let rawTabs = w["tabs"] as? [[String: Any]] else { return nil }
+        let tabs = rawTabs.compactMap { t -> TabState? in
+            guard let tabId = t["id"] as? String,
+                  let index = t["index"] as? Int,
+                  let url = t["url"] as? String,
+                  let title = t["title"] as? String,
+                  let active = t["active"] as? Bool else { return nil }
+            return TabState(id: tabId, index: index, url: url, title: title, active: active)
+        }
+        return WindowState(id: id, givenName: givenName, tabCount: tabCount, tabs: tabs)
+    }
+}
+
 // MARK: - Dump Command
 
 extension CLI {
@@ -256,37 +334,21 @@ extension CLI {
         var config: String?
 
         func run() throws {
-            var result: [String: Any] = [
-                "timestamp": ISO8601DateFormatter().string(from: Date())
-            ]
-
             // Daemon state
             let pid = DaemonPID.get()
             let isRunning = pid.map { DaemonPID.isRunning($0) } ?? false
-            var daemonState: [String: Any] = [
-                "running": isRunning
-            ]
-            if let pid = pid, isRunning {
-                daemonState["pid"] = pid
-            }
-            result["daemon"] = daemonState
+            let daemonState = DaemonState(running: isRunning, pid: isRunning ? pid : nil)
 
             // Config state
-            var configState: [String: Any] = [
-                "searchPaths": ConfigurationManager.searchPaths
-            ]
-
-            // Determine config path
             let configPath: String?
             if let path = config {
                 configPath = (path as NSString).expandingTildeInPath
             } else {
                 configPath = ConfigurationManager.findConfigPath()
             }
-            if let path = configPath {
-                configState["path"] = path
-            }
 
+            let configState: ConfigState
+            let browsers: [BrowserState]
             do {
                 let loadedConfig: Config
                 if let path = config {
@@ -295,33 +357,42 @@ extension CLI {
                 } else {
                     loadedConfig = try ConfigurationManager.loadConfig()
                 }
-                configState["valid"] = true
-                configState["version"] = loadedConfig.version
-                configState["ruleCount"] = loadedConfig.rules.count
-                var defaults: [String: Any] = ["browser": loadedConfig.defaults.browser]
-                if let window = loadedConfig.defaults.window {
-                    defaults["window"] = window
-                }
-                configState["defaults"] = defaults
-                if let logging = loadedConfig.logging {
-                    var loggingState: [String: Any] = ["enabled": logging.enabled]
-                    if let logPath = logging.path {
-                        loggingState["path"] = logPath
-                    }
-                    configState["logging"] = loggingState
-                }
-
-                // Browser state (requires loaded config)
-                result["browsers"] = getBrowserState(for: loadedConfig)
+                let loggingState = loadedConfig.logging.map { LoggingState(enabled: $0.enabled, path: $0.path) }
+                configState = ConfigState(
+                    searchPaths: ConfigurationManager.searchPaths,
+                    path: configPath,
+                    valid: true,
+                    version: loadedConfig.version,
+                    ruleCount: loadedConfig.rules.count,
+                    defaults: DefaultsState(browser: loadedConfig.defaults.browser, window: loadedConfig.defaults.window),
+                    logging: loggingState,
+                    error: nil
+                )
+                browsers = getBrowserState(for: loadedConfig)
             } catch {
-                configState["valid"] = false
-                configState["error"] = error.localizedDescription
-                result["browsers"] = []
+                configState = ConfigState(
+                    searchPaths: ConfigurationManager.searchPaths,
+                    path: configPath,
+                    valid: false,
+                    version: nil,
+                    ruleCount: nil,
+                    defaults: nil,
+                    logging: nil,
+                    error: error.localizedDescription
+                )
+                browsers = []
             }
-            result["config"] = configState
 
-            // Output JSON
-            if let jsonData = try? JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]),
+            let output = DumpOutput(
+                timestamp: ISO8601DateFormatter().string(from: Date()),
+                daemon: daemonState,
+                config: configState,
+                browsers: browsers
+            )
+
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            if let jsonData = try? encoder.encode(output),
                let jsonString = String(data: jsonData, encoding: .utf8) {
                 print(jsonString)
             }
@@ -340,42 +411,33 @@ extension CLI {
         }
 
         /// Get browser state for all browsers referenced in config
-        private func getBrowserState(for config: Config) -> [[String: Any]] {
+        private func getBrowserState(for config: Config) -> [BrowserState] {
             let browsers = getBrowsersFromConfig(config)
             let chromeController = ChromeController.shared()
 
-            var browserStates: [[String: Any]] = []
-
-            for bundleId in browsers.sorted() {
-                var browserInfo: [String: Any] = [
-                    "bundleId": bundleId
-                ]
-
-                // Check if browser is installed
+            return browsers.sorted().map { bundleId in
                 let isInstalled = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) != nil
-                browserInfo["installed"] = isInstalled
-
-                // Check if it's a Chrome-based browser we can query
                 let isChromeBasedBrowser = bundleId.hasPrefix("com.google.Chrome")
-                browserInfo["supportsScriptingBridge"] = isChromeBasedBrowser
 
                 if isChromeBasedBrowser, isInstalled {
-                    if let windows = chromeController.getAllWindows(forBundleId: bundleId) {
-                        browserInfo["running"] = !windows.isEmpty || isAppRunning(bundleId: bundleId)
-                        browserInfo["windowCount"] = windows.count
-                        browserInfo["windows"] = windows
+                    if let rawWindows = chromeController.getAllWindows(forBundleId: bundleId) {
+                        let windows = convertWindows(rawWindows as! [NSDictionary])
+                        return BrowserState(
+                            bundleId: bundleId,
+                            installed: isInstalled,
+                            supportsScriptingBridge: true,
+                            running: !rawWindows.isEmpty || isAppRunning(bundleId: bundleId),
+                            windowCount: rawWindows.count,
+                            windows: windows,
+                            error: nil
+                        )
                     } else {
-                        browserInfo["running"] = false
-                        browserInfo["error"] = "Could not query browser state"
+                        return BrowserState(bundleId: bundleId, installed: isInstalled, supportsScriptingBridge: true, running: false, windowCount: nil, windows: nil, error: "Could not query browser state")
                     }
-                } else if !isChromeBasedBrowser {
-                    browserInfo["running"] = isAppRunning(bundleId: bundleId)
+                } else {
+                    return BrowserState(bundleId: bundleId, installed: isInstalled, supportsScriptingBridge: false, running: isAppRunning(bundleId: bundleId), windowCount: nil, windows: nil, error: nil)
                 }
-
-                browserStates.append(browserInfo)
             }
-
-            return browserStates
         }
 
         /// Check if an app is running by bundle ID
