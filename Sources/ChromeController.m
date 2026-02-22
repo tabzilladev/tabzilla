@@ -234,8 +234,12 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
         }
     }
 
-    // Search all tabs for first match
+    // Search all tabs for first match (skip preferred window tabs already searched above)
     for (ChromeTabInfo *info in tabs) {
+        if (preferredWindow && preferredWindow.length > 0 &&
+            [info.windowName caseInsensitiveCompare:preferredWindow] == NSOrderedSame) {
+            continue;
+        }
         NSRange range = NSMakeRange(0, info.tabURL.length);
         if ([regex firstMatchInString:info.tabURL options:0 range:range]) {
             return info;
