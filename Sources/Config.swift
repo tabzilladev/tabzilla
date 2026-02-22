@@ -229,11 +229,20 @@ enum TabzillaPaths {
 
     private override init() {}
 
-    func configure(enabled: Bool, path: String?) {
-        self.logEnabled = enabled
-        self.logPath = path
+    private func isPathWithinHome(_ path: String) -> Bool {
+        let resolved = ((path as NSString).expandingTildeInPath as NSString).standardizingPath
+        let home = (FileManager.default.homeDirectoryForCurrentUser.path as NSString).standardizingPath
+        return resolved.hasPrefix(home + "/") || resolved == home
+    }
 
+    func configure(enabled: Bool, path: String?) {
         if enabled, let path = path {
+            guard isPathWithinHome(path) else {
+                fputs("warning: log path '\(path)' is outside home directory; logging disabled\n", stderr)
+                self.logEnabled = false
+                self.logPath = nil
+                return
+            }
             let expandedPath = (path as NSString).expandingTildeInPath
             let logDir = (expandedPath as NSString).deletingLastPathComponent
             try? FileManager.default.createDirectory(
@@ -241,6 +250,8 @@ enum TabzillaPaths {
                 withIntermediateDirectories: true
             )
         }
+        self.logEnabled = enabled
+        self.logPath = path
     }
 
     @objc func log(_ message: String) {
@@ -255,6 +266,7 @@ enum TabzillaPaths {
         guard logEnabled, let path = logPath else { return }
 
         let expandedPath = (path as NSString).expandingTildeInPath
+        guard isPathWithinHome(expandedPath) else { return }
         if let data = logMessage.data(using: .utf8) {
             if FileManager.default.fileExists(atPath: expandedPath) {
                 if let handle = FileHandle(forWritingAtPath: expandedPath) {
