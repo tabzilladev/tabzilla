@@ -51,7 +51,7 @@ Run `make help` for all available commands:
 ## Testing
 
 ```bash
-# Run all unit tests (21 tests)
+# Run all unit tests
 make test
 
 # Test URL routing with your config
