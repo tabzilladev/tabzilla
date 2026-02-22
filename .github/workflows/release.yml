@@ -8,6 +8,8 @@ on:
 jobs:
   release:
     runs-on: macos-14
+    permissions:
+      contents: write
     outputs:
       version: ${{ steps.extract-version.outputs.version }}
       sha256: ${{ steps.checksum.outputs.sha256 }}
