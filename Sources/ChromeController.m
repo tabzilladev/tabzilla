@@ -26,10 +26,6 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
     return instance;
 }
 
-- (BOOL)isChromeInstalled {
-    return [[NSWorkspace sharedWorkspace] URLForApplicationWithBundleIdentifier:@"com.google.Chrome"] != nil;
-}
-
 - (nullable ChromeApplication *)chromeAppForBundleId:(NSString *)bundleId {
     return (ChromeApplication *)[SBApplication applicationWithBundleIdentifier:bundleId];
 }
