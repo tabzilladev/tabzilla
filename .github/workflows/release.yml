@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: macos-14
+    outputs:
+      version: ${{ steps.extract-version.outputs.version }}
+      sha256: ${{ steps.checksum.outputs.sha256 }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: extract-version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Patch version numbers
+        run: scripts/set-version.sh "${{ steps.extract-version.outputs.version }}"
+
+      - name: Run unit tests
+        run: make test
+
+      - name: Build release app bundle
+        run: |
+          xcodebuild -project Tabzilla.xcodeproj \
+            -scheme Tabzilla \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
+            -quiet
+
+      - name: Package app bundle
+        run: |
+          VERSION="${{ steps.extract-version.outputs.version }}"
+          APP_PATH="build/DerivedData/Build/Products/Release/Tabzilla.app"
+          ZIP_NAME="Tabzilla-${VERSION}-macos.zip"
+          zip -r -y "$ZIP_NAME" "$APP_PATH"
+          echo "zip_name=$ZIP_NAME" >> "$GITHUB_ENV"
+
+      - name: Compute SHA256
+        id: checksum
+        run: |
+          SHA256=$(shasum -a 256 "${{ env.zip_name }}" | awk '{print $1}')
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+          echo "SHA256: $SHA256"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.zip_name }}
+          generate_release_notes: true
+          body: |
+            ## Installation
+
+            **Homebrew (recommended):**
+            ```bash
+            brew install --cask tabzilladev/tap/tabzilla
+            ```
+
+            **Manual:**
+            Download `${{ env.zip_name }}`, unzip, and drag `Tabzilla.app` to `/Applications`.
+            On first launch: right-click > Open, or run `xattr -cr /Applications/Tabzilla.app`.
+
+            **SHA256:** `${{ steps.checksum.outputs.sha256 }}`
+
+  update-homebrew:
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v4
+        with:
+          repository: tabzilladev/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update Cask version and sha256
+        run: |
+          VERSION="${{ needs.release.outputs.version }}"
+          SHA256="${{ needs.release.outputs.sha256 }}"
+          CASK="homebrew-tap/Casks/tabzilla.rb"
+
+          sed -i "s/version \"[^\"]*\"/version \"$VERSION\"/" "$CASK"
+          sed -i "s/sha256 \"[^\"]*\"/sha256 \"$SHA256\"/" "$CASK"
+
+          echo "Updated Cask to version $VERSION with sha256 $SHA256"
+
+      - name: Commit and push
+        run: |
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/tabzilla.rb
+          git commit -m "tabzilla ${{ needs.release.outputs.version }}"
+          git push
