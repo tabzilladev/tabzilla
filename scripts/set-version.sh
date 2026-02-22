@@ -18,7 +18,8 @@ if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   exit 1
 fi
 
-PATCH="${VERSION##*.}"
+IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+BUILD_NUMBER=$((MAJOR * 10000 + MINOR * 100 + PATCH))
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -32,8 +33,8 @@ sed -i '' "s/version: \"[^\"]*\"/version: \"$VERSION\"/" "$CLI_SWIFT"
 echo "  CLI.swift: version = $VERSION"
 
 # Patch CURRENT_PROJECT_VERSION in project.pbxproj
-sed -i '' "s/CURRENT_PROJECT_VERSION = [^;]*/CURRENT_PROJECT_VERSION = $PATCH/g" "$PBXPROJ"
-echo "  project.pbxproj: CURRENT_PROJECT_VERSION = $PATCH"
+sed -i '' "s/CURRENT_PROJECT_VERSION = [^;]*/CURRENT_PROJECT_VERSION = $BUILD_NUMBER/g" "$PBXPROJ"
+echo "  project.pbxproj: CURRENT_PROJECT_VERSION = $BUILD_NUMBER"
 
 # Patch MARKETING_VERSION in project.pbxproj
 sed -i '' "s/MARKETING_VERSION = [^;]*/MARKETING_VERSION = $VERSION/g" "$PBXPROJ"
