@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  # Manual-trigger only during v0 rapid iteration to avoid burning CI minutes.
+  # push/pull_request triggers will be added once the project stabilizes.
   workflow_dispatch:
 
 jobs:
