@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="300" viewBox="0 0 900 300">
+  <defs>
+    <!-- subtle elliptical highlight, slightly right of center -->
+    <radialGradient id="tabzillaGradient"
+      cx="62%" cy="28%"
+      r="75%"
+      fx="62%" fy="28%"
+      gradientUnits="objectBoundingBox"
+      gradientTransform="scale(1 0.65)">
+      
+      <!-- lighter orange highlight -->
+      <stop offset="0%" stop-color="#ff6a2a"/>
+      
+      <!-- base orange -->
+      <stop offset="55%" stop-color="#ff480d"/>
+      
+      <!-- slightly darker lower-left falloff -->
+      <stop offset="100%" stop-color="#e63f0a"/>
+    </radialGradient>
+  </defs>
+
+  <!-- orange tab shape -->
+  <path
+    d="M 44.6 232.4
+       A 28.0 28.0 0 0 0 68.0 258.9
+       L 782.0 231.1
+       A 28.0 28.0 0 0 0 815.9 202.6
+       L 844.1 72.4
+       A 28.0 28.0 0 0 0 822.0 45.0
+       L 238.0 45.0
+       A 28.0 28.0 0 0 0 210.0 73.0
+       L 210.0 80.0
+       L 98.0 80.0
+       A 28.0 28.0 0 0 0 65.4 107.6
+       Z"
+    fill="url(#tabzillaGradient)"
+  />
+
+  <!-- wordmark -->
+  <text
+    x="450"
+    y="165"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    fill="#ffffff"
+    font-family="ui-sans-serif, system-ui, -apple-system, -Segoe UI, Roboto, Helvetica, Arial"
+    font-size="160"
+    font-weight="800"
+  >tabzilla</text>
+</svg>
