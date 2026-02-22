@@ -13,6 +13,9 @@ XCODE_DEBUG_APP = $(shell find "$(DERIVED_DATA)" -path "*/Tabzilla-*/Build/Produ
 # Default target
 all: build
 
+help: ## Show this help
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
+
 ##@ Build
 
 build: ## Build release app bundle with Xcode
@@ -68,6 +71,18 @@ register: ## Re-register with Launch Services (useful after manual copy)
 	@$(LSREGISTER) -f "$(INSTALLED_APP)"
 	@echo "Registered $(APP_NAME) with Launch Services"
 
+##@ Release
+
+version: ## Show current version
+	@grep -o 'version: "[^"]*"' Sources/CLI.swift | grep -o '"[^"]*"' | tr -d '"'
+
+set-version: ## Set version across all source files; usage: make set-version V=X.Y.Z
+	@test -n "$(V)" || (echo "Usage: make set-version V=X.Y.Z" && exit 1)
+	@scripts/set-version.sh "$(V)"
+
+release: ## Tag and push current version to trigger CI release; use FORCE=1 to re-tag an existing version
+	@scripts/release.sh $(if $(filter 1,$(FORCE)),--force,)
+
 ##@ Daemon
 
 run: ## Start the installed app (daemon mode)
@@ -99,19 +114,3 @@ dump: ## Dump full state as JSON (for tools/agents)
 reload: ## Reload configuration
 	@"$(INSTALLED_APP)/Contents/MacOS/$(APP_NAME)" reload
 
-##@ Release
-
-version: ## Show current version
-	@grep -o 'version: "[^"]*"' Sources/CLI.swift | grep -o '"[^"]*"' | tr -d '"'
-
-set-version: ## Set version across all source files; usage: make set-version V=X.Y.Z
-	@test -n "$(V)" || (echo "Usage: make set-version V=X.Y.Z" && exit 1)
-	@scripts/set-version.sh "$(V)"
-
-release: ## Tag and push current version to trigger CI release; use FORCE=1 to re-tag an existing version
-	@scripts/release.sh $(if $(filter 1,$(FORCE)),--force,)
-
-##@ Help
-
-help: ## Show this help
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
