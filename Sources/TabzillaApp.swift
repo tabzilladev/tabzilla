@@ -279,6 +279,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if result == .success, let window = focusedWindow {
             var titleValue: CFTypeRef?
+            // Force-cast is safe: AXUIElementCopyAttributeValue with kAXFocusedWindowAttribute
+            // always returns an AXUIElement per the Accessibility API contract.
             let titleResult = AXUIElementCopyAttributeValue(window as! AXUIElement, kAXTitleAttribute as CFString, &titleValue)
 
             if titleResult == .success, let title = titleValue as? String {
