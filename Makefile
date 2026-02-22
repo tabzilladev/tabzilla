@@ -1,4 +1,4 @@
-.PHONY: build debug test install uninstall register clean distclean run stop kill status dump reload test-url version set-version help
+.PHONY: build debug test install uninstall register clean distclean run stop kill status dump reload test-url version set-version release help
 
 APP_NAME := Tabzilla
 BUNDLE_ID := dev.tabzilla.Tabzilla
@@ -13,8 +13,9 @@ XCODE_DEBUG_APP = $(shell find "$(DERIVED_DATA)" -path "*/Tabzilla-*/Build/Produ
 # Default target
 all: build
 
-# Build release app bundle with Xcode
-build:
+##@ Build
+
+build: ## Build release app bundle with Xcode
 	@echo "Building $(APP_NAME)..."
 	@xcodebuild -project $(APP_NAME).xcodeproj \
 		-scheme $(APP_NAME) \
@@ -22,7 +23,7 @@ build:
 		-quiet
 	@echo "Build complete"
 
-# Build debug version with Xcode (SPM doesn't support mixed Swift/ObjC)
+# Build debug app bundle (used as prerequisite by test-url)
 debug:
 	@echo "Building $(APP_NAME) (debug)..."
 	@xcodebuild -project $(APP_NAME).xcodeproj \
@@ -31,48 +32,48 @@ debug:
 		-quiet
 	@echo "Debug build complete"
 
-# Run unit tests via SPM (tests don't use Executor/ChromeController)
-test:
+test: ## Run unit tests via SPM
 	@swift test
 
-# Install to /Applications and register with Launch Services
-install: build
+test-url: debug ## Test which rule matches a URL; usage: make test-url URL=https://example.com [CONFIG=path]
+	@test -n "$(URL)" || (echo "Usage: make test-url URL=https://example.com [CONFIG=path/to/config.yaml]" && exit 1)
+	@"$(XCODE_DEBUG_APP)/Contents/MacOS/$(APP_NAME)" test "$(URL)" $(if $(CONFIG),-c "$(CONFIG)",)
+
+clean: ## Remove build artifacts
+	@echo "Cleaning..."
+	@rm -rf .build
+	@xcodebuild -project $(APP_NAME).xcodeproj -scheme $(APP_NAME) clean -quiet 2>/dev/null || true
+	@echo "Clean complete"
+
+distclean: clean ## Deep clean: also removes Xcode DerivedData (requires re-fetching packages)
+	@echo "Deep cleaning..."
+	@rm -rf "$(DERIVED_DATA)"/$(APP_NAME)-*
+	@echo "Deep clean complete"
+
+##@ Install
+
+install: build ## Build, install to /Applications, and register with Launch Services
 	@echo "Installing to $(INSTALL_DIR)..."
 	@rm -rf "$(INSTALLED_APP)"
 	@cp -r "$(XCODE_BUILD_APP)" "$(INSTALL_DIR)/"
 	@$(LSREGISTER) -f "$(INSTALLED_APP)"
 	@echo "Installed and registered $(APP_NAME)"
 
-# Uninstall from /Applications
-uninstall:
+uninstall: ## Remove from /Applications
 	@echo "Uninstalling $(APP_NAME)..."
 	@rm -rf "$(INSTALLED_APP)"
 	@echo "Uninstalled"
 
-# Re-register with Launch Services (useful after manual copy)
-register:
+register: ## Re-register with Launch Services (useful after manual copy)
 	@$(LSREGISTER) -f "$(INSTALLED_APP)"
 	@echo "Registered $(APP_NAME) with Launch Services"
 
-# Clean build artifacts
-clean:
-	@echo "Cleaning..."
-	@rm -rf .build
-	@xcodebuild -project $(APP_NAME).xcodeproj -scheme $(APP_NAME) clean -quiet 2>/dev/null || true
-	@echo "Clean complete"
+##@ Daemon
 
-# Deep clean (also removes Xcode derived data - requires re-fetching packages)
-distclean: clean
-	@echo "Deep cleaning..."
-	@rm -rf "$(DERIVED_DATA)"/$(APP_NAME)-*
-	@echo "Deep clean complete"
-
-# Run the installed app (daemon mode)
-run:
+run: ## Start the installed app (daemon mode)
 	@open "$(INSTALLED_APP)"
 
-# Stop the daemon
-stop:
+stop: ## Stop the daemon gracefully
 	@"$(INSTALLED_APP)/Contents/MacOS/$(APP_NAME)" quit 2>/dev/null || echo "Daemon not running"
 	@sleep 1
 	@if pgrep -f "$(APP_NAME).app/Contents/MacOS/$(APP_NAME)" >/dev/null 2>&1; then \
@@ -81,8 +82,7 @@ stop:
 		exit 1; \
 	fi
 
-# Force kill all Tabzilla processes
-kill:
+kill: ## Force kill all Tabzilla processes
 	@if pgrep -f "$(APP_NAME).app/Contents/MacOS/$(APP_NAME)" >/dev/null 2>&1; then \
 		pkill -f "$(APP_NAME).app/Contents/MacOS/$(APP_NAME)"; \
 		echo "Killed all Tabzilla processes"; \
@@ -90,59 +90,28 @@ kill:
 		echo "No Tabzilla processes running"; \
 	fi
 
-# Show daemon status
-status:
+status: ## Show daemon status
 	@"$(INSTALLED_APP)/Contents/MacOS/$(APP_NAME)" status
 
-# Dump state of Tabzilla and browsers referenced in the configuration (JSON)
-dump:
+dump: ## Dump full state as JSON (for tools/agents)
 	@"$(INSTALLED_APP)/Contents/MacOS/$(APP_NAME)" dump
 
-# Reload configuration
-reload:
+reload: ## Reload configuration
 	@"$(INSTALLED_APP)/Contents/MacOS/$(APP_NAME)" reload
 
-# Test a URL (uses debug build for faster iteration)
-test-url: debug
-	@test -n "$(URL)" || (echo "Usage: make test-url URL=https://example.com [CONFIG=path/to/config.yaml]" && exit 1)
-	@"$(XCODE_DEBUG_APP)/Contents/MacOS/$(APP_NAME)" test "$(URL)" $(if $(CONFIG),-c "$(CONFIG)",)
+##@ Release
 
-# Print the current version (from CLI.swift)
-version:
+version: ## Show current version
 	@grep -o 'version: "[^"]*"' Sources/CLI.swift | grep -o '"[^"]*"' | tr -d '"'
 
-# Set version across all source files
-set-version:
+set-version: ## Set version across all source files; usage: make set-version V=X.Y.Z
 	@test -n "$(V)" || (echo "Usage: make set-version V=X.Y.Z" && exit 1)
 	@scripts/set-version.sh "$(V)"
 
-# Show help
-help:
-	@echo "Tabzilla Development Commands"
-	@echo ""
-	@echo "  make build      Build release app bundle"
-	@echo "  make debug      Build debug binary with Xcode"
-	@echo "  make test       Run unit tests"
-	@echo "  make install    Build, install to /Applications, register"
-	@echo "  make uninstall  Remove from /Applications"
-	@echo "  make register   Re-register with Launch Services"
-	@echo "  make clean      Remove build artifacts"
-	@echo ""
-	@echo "  make run        Start the daemon"
-	@echo "  make stop       Stop the daemon"
-	@echo "  make kill       Force kill all Tabzilla processes"
-	@echo "  make status     Show daemon status"
-	@echo "  make dump       Dump full state as JSON (for tools/agents)"
-	@echo "  make reload     Reload configuration"
-	@echo ""
-	@echo "  make test-url URL=<url> [CONFIG=<path>]"
-	@echo "                  Test which rule matches (uses debug build)"
-	@echo ""
-	@echo "  make version    Show current version"
-	@echo "  make set-version V=X.Y.Z"
-	@echo "                  Set version across all source files"
-	@echo ""
-	@echo "Examples:"
-	@echo "  make install"
-	@echo "  make test-url URL=https://github.com/user/repo/pull/123"
-	@echo "  make test-url URL=https://example.com CONFIG=test/fixtures/config.yaml"
+release: ## Tag and push current version to trigger CI release; use FORCE=1 to re-tag an existing version
+	@scripts/release.sh $(if $(filter 1,$(FORCE)),--force,)
+
+##@ Help
+
+help: ## Show this help
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
