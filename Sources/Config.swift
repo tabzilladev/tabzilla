@@ -105,40 +105,80 @@ enum ConfigurationManager {
 
 class FileWatcher {
     private var source: DispatchSourceFileSystemObject?
-    private let fileDescriptor: Int32
+    private var fileDescriptor: Int32
+    private let path: String
     private let callback: () -> Void
     private var debounceWork: DispatchWorkItem?
     private let debounceInterval: TimeInterval = 0.3
+    // Delay before re-attaching after a delete/rename (atomic saves replace the file,
+    // so the new file may not exist yet when the event fires).
+    private let reattachDelay: TimeInterval = 0.5
 
     init?(path: String, callback: @escaping () -> Void) {
+        self.path = path
         self.callback = callback
 
         let fd = open(path, O_EVTONLY)
         guard fd >= 0 else { return nil }
         self.fileDescriptor = fd
 
+        self.source = FileWatcher.makeSource(fd: fd, owner: nil)
+        // Can't pass self into makeSource during init, so set the handler after
+        self.source?.setEventHandler { [weak self] in self?.handleEvent() }
+        self.source?.resume()
+    }
+
+    private static func makeSource(fd: Int32, owner: FileWatcher?) -> DispatchSourceFileSystemObject {
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fd,
             eventMask: [.write, .delete, .rename],
             queue: .main
         )
+        source.setCancelHandler { close(fd) }
+        return source
+    }
 
-        source.setEventHandler { [weak self] in
-            guard let self = self else { return }
-            self.debounceWork?.cancel()
-            let work = DispatchWorkItem { [weak self] in
-                self?.callback()
+    private func handleEvent() {
+        let flags = source?.data ?? []
+
+        if flags.contains(.delete) || flags.contains(.rename) {
+            // The file was replaced via an atomic save (write-to-temp + rename).
+            // The current fd is now stale — cancel it and re-open the file at the
+            // same path after a short delay to let the new file appear.
+            source?.cancel()
+            source = nil
+            fileDescriptor = -1
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + reattachDelay) { [weak self] in
+                self?.reattach()
             }
-            self.debounceWork = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + self.debounceInterval, execute: work)
+            return
         }
 
-        source.setCancelHandler {
-            close(fd)
-        }
+        // Normal write event — debounce and notify
+        debounceWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.callback() }
+        debounceWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + debounceInterval, execute: work)
+    }
 
-        source.resume()
-        self.source = source
+    private func reattach() {
+        let fd = open(path, O_EVTONLY)
+        guard fd >= 0 else {
+            // File still not available — try again
+            DispatchQueue.main.asyncAfter(deadline: .now() + reattachDelay) { [weak self] in
+                self?.reattach()
+            }
+            return
+        }
+        fileDescriptor = fd
+        let newSource = FileWatcher.makeSource(fd: fd, owner: self)
+        newSource.setEventHandler { [weak self] in self?.handleEvent() }
+        newSource.resume()
+        source = newSource
+
+        // Notify caller that the file changed (it was replaced)
+        callback()
     }
 
     deinit {
