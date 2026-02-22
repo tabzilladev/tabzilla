@@ -68,18 +68,36 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
         [chrome activate];
 
         // Create new tab in target window
-        ChromeTab *newTab = [[[chrome classForScriptingClass:@"tab"] alloc] init];
-        [[targetWindow tabs] addObject:newTab];
-        [newTab setURL:urlString];
+        @try {
+            ChromeTab *newTab = [[[chrome classForScriptingClass:@"tab"] alloc] init];
+            [[targetWindow tabs] addObject:newTab];
+            [newTab setURL:urlString];
+        } @catch (NSException *exception) {
+            if (error) {
+                *error = [NSError errorWithDomain:TabzillaErrorDomain
+                                             code:3
+                                         userInfo:@{NSLocalizedDescriptionKey: exception.reason ?: @"Scripting Bridge error"}];
+            }
+            return NO;
+        }
     } else {
         // No matching window - create new one
-        ChromeWindow *newWindow = [[[chrome classForScriptingClass:@"window"] alloc] init];
-        [chrome.windows addObject:newWindow];
-        newWindow.givenName = windowName;
+        @try {
+            ChromeWindow *newWindow = [[[chrome classForScriptingClass:@"window"] alloc] init];
+            [chrome.windows addObject:newWindow];
+            newWindow.givenName = windowName;
 
-        // Set URL on the default tab
-        ChromeTab *activeTab = newWindow.activeTab;
-        activeTab.URL = urlString;
+            // Set URL on the default tab
+            ChromeTab *activeTab = newWindow.activeTab;
+            activeTab.URL = urlString;
+        } @catch (NSException *exception) {
+            if (error) {
+                *error = [NSError errorWithDomain:TabzillaErrorDomain
+                                             code:3
+                                         userInfo:@{NSLocalizedDescriptionKey: exception.reason ?: @"Scripting Bridge error"}];
+            }
+            return NO;
+        }
 
         [chrome activate];
     }
@@ -118,9 +136,18 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
     [chrome activate];
 
     // Create new tab in target window
-    ChromeTab *newTab = [[[chrome classForScriptingClass:@"tab"] alloc] init];
-    [[targetWindow tabs] addObject:newTab];
-    [newTab setURL:urlString];
+    @try {
+        ChromeTab *newTab = [[[chrome classForScriptingClass:@"tab"] alloc] init];
+        [[targetWindow tabs] addObject:newTab];
+        [newTab setURL:urlString];
+    } @catch (NSException *exception) {
+        if (error) {
+            *error = [NSError errorWithDomain:TabzillaErrorDomain
+                                         code:3
+                                     userInfo:@{NSLocalizedDescriptionKey: exception.reason ?: @"Scripting Bridge error"}];
+        }
+        return NO;
+    }
 
     return YES;
 }
