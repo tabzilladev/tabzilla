@@ -2,7 +2,7 @@
 
 ## Building from Source
 
-Requires macOS 13+ and Xcode 15+.
+Requires macOS 13+ and Xcode 16+.
 
 ```bash
 git clone https://github.com/bdupras/tabzilla.git
