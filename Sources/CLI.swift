@@ -6,7 +6,7 @@ struct CLI: ParsableCommand {
     static var configuration = CommandConfiguration(
         commandName: "tabz",
         abstract: "URL routing daemon for macOS",
-        version: "1.0.0",
+        version: "0.1.0",
         subcommands: [Open.self, Test.self, Status.self, Dump.self, Reload.self, Quit.self],
         defaultSubcommand: nil
     )
