@@ -85,7 +85,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             Logger.shared.log("Configuration loaded successfully")
         } catch {
             Logger.shared.log("Failed to load configuration: \(error)")
-            showErrorInBrowser(error)
         }
     }
 
@@ -314,12 +313,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func openURLInDefaultBrowser(_ url: URL) {
         NSWorkspace.shared.open(url)
-    }
-
-    private func showErrorInBrowser(_ error: Error) {
-        let errorMessage = error.localizedDescription.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "Unknown error"
-        let errorURL = URL(string: "data:text/html,<h1>Tabzilla Configuration Error</h1><p>\(errorMessage)</p>")!
-        NSWorkspace.shared.open(errorURL)
     }
 
     // MARK: - PID File Management
