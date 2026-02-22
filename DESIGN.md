@@ -12,12 +12,7 @@ Tabzilla is a native macOS application that registers as the system's default br
 | **Browserosaurus** | Manual picker | UI popup | Simple, no config | No automation, archived |
 | **BrowserRouter** | Focus-based | UI prefs | Automatic, follows focus | No rule-based routing |
 | **Objektiv** | Hotkey switcher | Status bar | Lightweight | No URL-based rules |
-| **chrome-cli** | CLI tool | Command args | Window/tab management, Scripting Bridge | No window naming (yet) |
-
-**Fork with window naming**: github.com/bdupras/chrome-cli/tree/openWindowOnDemand
-- Adds `givenName` support for named windows
-- Implements find-or-create window by name
-- Reference for Scripting Bridge implementation
+| **chrome-cli** | CLI tool | Command args | Window/tab management, Scripting Bridge | No window naming |
 
 **Design choice**: Take inspiration from Finicky's rule engine but use YAML config (simpler, no JS required).
 
