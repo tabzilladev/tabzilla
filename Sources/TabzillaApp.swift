@@ -24,6 +24,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var ruleEngine: RuleEngine?
     private var executor: Executor?
     private var fileWatcher: FileWatcher?
+    private var sighupSource: DispatchSourceSignal?
+    private var sigtermSource: DispatchSourceSignal?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // Register for URL events BEFORE didFinishLaunching
@@ -113,19 +115,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func setupSignalHandlers() {
+        // DispatchSource requires signals to be ignored before installing a source handler
+        signal(SIGHUP, SIG_IGN)
+        signal(SIGTERM, SIG_IGN)
+
         // SIGHUP: reload config
-        signal(SIGHUP) { _ in
-            DispatchQueue.main.async {
-                (NSApp.delegate as? AppDelegate)?.reloadConfiguration()
-            }
+        let hupSource = DispatchSource.makeSignalSource(signal: SIGHUP, queue: .main)
+        hupSource.setEventHandler { [weak self] in
+            self?.reloadConfiguration()
         }
+        hupSource.resume()
+        sighupSource = hupSource
 
         // SIGTERM: graceful shutdown
-        signal(SIGTERM) { _ in
-            DispatchQueue.main.async {
-                NSApp.terminate(nil)
-            }
+        let termSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        termSource.setEventHandler {
+            NSApp.terminate(nil)
         }
+        termSource.resume()
+        sigtermSource = termSource
     }
 
     @objc private func handleGetURLEvent(_ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor) {
