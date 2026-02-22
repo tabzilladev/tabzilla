@@ -421,7 +421,7 @@ extension CLI {
 
                 if isChromeBasedBrowser, isInstalled {
                     if let rawWindows = chromeController.getAllWindows(forBundleId: bundleId) {
-                        let windows = convertWindows(rawWindows as! [NSDictionary])
+                        let windows = convertWindows(rawWindows as? [NSDictionary] ?? [])
                         return BrowserState(
                             bundleId: bundleId,
                             installed: isInstalled,
