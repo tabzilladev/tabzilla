@@ -155,7 +155,9 @@ class RuleEngine {
     private func substituteCaptures(_ pattern: String, with groups: [String]) -> String {
         var result = pattern
 
-        // Replace \1, \2, etc. with regex-escaped captured groups
+        // Replace \1–\9 with regex-escaped captured groups.
+        // Capped at 9 because that's the POSIX/PCRE convention for backreference syntax,
+        // and no realistic URL pattern needs more than 9 capture groups.
         for i in 1..<min(groups.count, 10) {
             let escapedGroup = NSRegularExpression.escapedPattern(for: groups[i])
             result = result.replacingOccurrences(of: "\\\(i)", with: escapedGroup)
