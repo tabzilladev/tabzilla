@@ -38,7 +38,10 @@ if [[ $LOCAL_EXISTS -eq 1 || $REMOTE_EXISTS -eq 1 ]]; then
   [[ $REMOTE_EXISTS -eq 1 ]] && git -C "$REPO_ROOT" push origin ":refs/tags/$TAG"
 fi
 
+REPO_URL="$(gh repo view --json url -q .url)"
+
 echo "Tagging $TAG..."
 git -C "$REPO_ROOT" tag "$TAG"
 git -C "$REPO_ROOT" push origin "$TAG"
 echo "Pushed $TAG — CI release workflow triggered"
+echo "View on GitHub: $REPO_URL/actions"
