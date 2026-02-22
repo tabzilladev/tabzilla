@@ -132,6 +132,8 @@ class RuleEngine {
             }
 
             // Extract capture groups
+            // groups[0] = full match, groups[1..] = capture groups
+            // substituteCaptures() starts at index 1 for \1, \2, etc.
             var groups: [String] = []
             for i in 0..<match.numberOfRanges {
                 if let range = Range(match.range(at: i), in: string) {
