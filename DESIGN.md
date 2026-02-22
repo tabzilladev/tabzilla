@@ -75,7 +75,7 @@ struct RouteAction {
     let rewrittenURL: URL             // URL after rewrite rules applied
     let browser: String               // Bundle ID (e.g., "com.google.Chrome")
     let windowTarget: WindowTarget?   // Window targeting details
-    let tabAction: TabAction?         // useTab or focusTab details
+    let tabActions: [TabAction]       // focusTab/useTab/followTab actions, in priority order
 }
 ```
 
@@ -135,6 +135,7 @@ logging:
 | `tabz open <url>` | Route URL via rules and open in browser |
 | `tabz test <url>` | Show which rule matches (dry run) |
 | `tabz status` | Show daemon status and configuration |
+| `tabz dump` | Dump full state as JSON (for tools/agents) |
 | `tabz reload` | Signal daemon to reload config (SIGHUP) |
 | `tabz quit` | Stop the daemon (SIGTERM) |
 
