@@ -29,6 +29,20 @@ struct Config: Codable {
         let useTab: String?
         let focusTab: String?
         let followTab: String?
+
+        init(name: String? = nil, url: String? = nil, sourceApp: String? = nil,
+             sourceWindowTitle: String? = nil, browser: String? = nil, window: String? = nil,
+             useTab: String? = nil, focusTab: String? = nil, followTab: String? = nil) {
+            self.name = name
+            self.url = url
+            self.sourceApp = sourceApp
+            self.sourceWindowTitle = sourceWindowTitle
+            self.browser = browser
+            self.window = window
+            self.useTab = useTab
+            self.focusTab = focusTab
+            self.followTab = followTab
+        }
     }
 
     struct LoggingConfig: Codable {

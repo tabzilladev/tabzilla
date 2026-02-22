@@ -9,7 +9,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "github", url: "github\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Code", useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "github", url: "github\\.com", window: "Code")
             ]
         )
 
@@ -25,7 +25,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "github", url: "github\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Code", useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "github", url: "github\\.com", window: "Code")
             ]
         )
 
@@ -41,7 +41,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "github", url: "(?i)github\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Code", useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "github", url: "(?i)github\\.com", window: "Code")
             ]
         )
 
@@ -57,7 +57,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "slack", url: nil, sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: nil, browser: "com.google.Chrome.beta", window: "Work", useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "slack", sourceApp: "^com\\.tinyspeck\\.slackmacgap$", browser: "com.google.Chrome.beta", window: "Work")
             ]
         )
 
@@ -76,7 +76,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "slack", url: nil, sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: nil, browser: "com.google.Chrome.beta", window: "Work", useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "slack", sourceApp: "^com\\.tinyspeck\\.slackmacgap$", browser: "com.google.Chrome.beta", window: "Work")
             ]
         )
 
@@ -95,7 +95,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "work-slack", url: nil, sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: "(?i)work", browser: "com.google.Chrome.beta", window: "Work", useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "work-slack", sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: "(?i)work", browser: "com.google.Chrome.beta", window: "Work")
             ]
         )
 
@@ -114,7 +114,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "work-slack", url: nil, sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: "(?i)work", browser: "com.google.Chrome.beta", window: "Work", useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "work-slack", sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: "(?i)work", browser: "com.google.Chrome.beta", window: "Work")
             ]
         )
 
@@ -134,7 +134,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "work-github", url: "github\\.com", sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: "(?i)work", browser: "com.google.Chrome.beta", window: "Work-Code", useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "work-github", url: "github\\.com", sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: "(?i)work", browser: "com.google.Chrome.beta", window: "Work-Code")
             ]
         )
 
@@ -171,7 +171,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "google-docs", url: "docs\\.google\\.com/document/d/([^/]+)", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: "docs\\.google\\.com/document/d/\\1", focusTab: nil, followTab: nil)
+                Config.Rule(name: "google-docs", url: "docs\\.google\\.com/document/d/([^/]+)", useTab: "docs\\.google\\.com/document/d/\\1")
             ]
         )
 
@@ -188,7 +188,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "jira", url: "jira\\.example\\.com/browse/(\\w+-\\d+)", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: nil, focusTab: "jira\\.example\\.com/browse/\\1", followTab: nil)
+                Config.Rule(name: "jira", url: "jira\\.example\\.com/browse/(\\w+-\\d+)", focusTab: "jira\\.example\\.com/browse/\\1")
             ]
         )
 
@@ -207,9 +207,9 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "specific", url: "github\\.com/airbnb", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Airbnb", useTab: nil, focusTab: nil, followTab: nil),
-                Config.Rule(name: "general", url: "github\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Code", useTab: nil, focusTab: nil, followTab: nil),
-                Config.Rule(name: "catchall", url: ".*", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "specific", url: "github\\.com/airbnb", window: "Airbnb"),
+                Config.Rule(name: "general", url: "github\\.com", window: "Code"),
+                Config.Rule(name: "catchall", url: ".*")
             ]
         )
 
@@ -252,8 +252,8 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "invalid", url: "[invalid(regex", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Test", useTab: nil, focusTab: nil, followTab: nil),
-                Config.Rule(name: "catchall", url: ".*", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "invalid", url: "[invalid(regex", window: "Test"),
+                Config.Rule(name: "catchall", url: ".*")
             ]
         )
 
@@ -271,9 +271,9 @@ final class RuleEngineTests: XCTestCase {
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
                 // Multiple domains with OR
-                Config.Rule(name: "work-domains", url: "(?i)(corp|jira|wiki)\\.example\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Work", useTab: nil, focusTab: nil, followTab: nil),
+                Config.Rule(name: "work-domains", url: "(?i)(corp|jira|wiki)\\.example\\.com", window: "Work"),
                 // Production-only pattern (matches app.myapp.com but not staging.myapp.com)
-                Config.Rule(name: "prod-only", url: "://app\\.myapp\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Prod", useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "prod-only", url: "://app\\.myapp\\.com", window: "Prod")
             ]
         )
 
@@ -300,7 +300,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "github", url: "github\\.com/([^/]+/[^/]+)", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: nil, focusTab: nil, followTab: "github\\.com/\\1")
+                Config.Rule(name: "github", url: "github\\.com/([^/]+/[^/]+)", followTab: "github\\.com/\\1")
             ]
         )
 
@@ -319,7 +319,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "github", url: "github\\.com/([^/]+/[^/]+)", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: "github\\.com/\\1/issues", focusTab: "github\\.com/\\1$", followTab: "github\\.com")
+                Config.Rule(name: "github", url: "github\\.com/([^/]+/[^/]+)", useTab: "github\\.com/\\1/issues", focusTab: "github\\.com/\\1$", followTab: "github\\.com")
             ]
         )
 
@@ -342,7 +342,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "github", url: "github\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Code", useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "github", url: "github\\.com", window: "Code")
             ]
         )
 
@@ -358,7 +358,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "docs", url: "docs\\.google\\.com", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: "docs\\.google\\.com", focusTab: nil, followTab: nil)
+                Config.Rule(name: "docs", url: "docs\\.google\\.com", useTab: "docs\\.google\\.com")
             ]
         )
 
@@ -375,7 +375,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "chrome-internal", url: "^chrome://", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Settings", useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "chrome-internal", url: "^chrome://", window: "Settings")
             ]
         )
 
@@ -390,7 +390,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "chrome-settings", url: "^chrome://settings", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Settings", useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "chrome-settings", url: "^chrome://settings", window: "Settings")
             ]
         )
 
@@ -404,7 +404,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "chrome-settings", url: "^chrome://settings", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: "chrome://settings", focusTab: nil, followTab: nil)
+                Config.Rule(name: "chrome-settings", url: "^chrome://settings", useTab: "chrome://settings")
             ]
         )
 
@@ -421,7 +421,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "extension", url: "^chrome-extension://", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: "Extensions", useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "extension", url: "^chrome-extension://", window: "Extensions")
             ]
         )
 
@@ -436,7 +436,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "catchall", url: ".*", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: nil, focusTab: nil, followTab: nil)
+                Config.Rule(name: "catchall", url: ".*")
             ]
         )
 
@@ -455,7 +455,7 @@ final class RuleEngineTests: XCTestCase {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "pr-with-query", url: "github\\.com/([^/]+/[^/]+)/pull/(\\d+)(.*)", sourceApp: nil, sourceWindowTitle: nil, browser: nil, window: nil, useTab: nil, focusTab: "github\\.com/\\1/pull/\\2\\3$", followTab: "github\\.com/\\1/pull/\\2")
+                Config.Rule(name: "pr-with-query", url: "github\\.com/([^/]+/[^/]+)/pull/(\\d+)(.*)", focusTab: "github\\.com/\\1/pull/\\2\\3$", followTab: "github\\.com/\\1/pull/\\2")
             ]
         )
 
