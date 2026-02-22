@@ -305,13 +305,13 @@ final class RuleEngineTests: XCTestCase {
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "https://github.com/anthropics/claude-code")!)
+        let action = engine.testMatch(url: URL(string: "https://github.com/acme/widgets")!)
 
         XCTAssertEqual(action.matchedRule, "github")
         XCTAssertEqual(action.tabActions.count, 1)
         XCTAssertEqual(action.tabActions.first?.kind, .follow)
-        // Captured group "anthropics/claude-code" is regex-escaped, so "/" becomes "\/"
-        XCTAssertEqual(action.tabActions.first?.pattern, "github\\.com/anthropics\\/claude-code")
+        // Captured group "acme/widgets" is regex-escaped, so "/" becomes "\/"
+        XCTAssertEqual(action.tabActions.first?.pattern, "github\\.com/acme\\/widgets")
     }
 
     func testMultipleTabActionsOrdering() {
@@ -324,16 +324,16 @@ final class RuleEngineTests: XCTestCase {
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "https://github.com/anthropics/claude-code")!)
+        let action = engine.testMatch(url: URL(string: "https://github.com/acme/widgets")!)
 
         XCTAssertEqual(action.matchedRule, "github")
         XCTAssertEqual(action.tabActions.count, 3)
         // Order should be: focus, use, follow
-        // Captured group "anthropics/claude-code" is regex-escaped, so "/" becomes "\/"
+        // Captured group "acme/widgets" is regex-escaped, so "/" becomes "\/"
         XCTAssertEqual(action.tabActions[0].kind, .focus)
-        XCTAssertEqual(action.tabActions[0].pattern, "github\\.com/anthropics\\/claude-code$")
+        XCTAssertEqual(action.tabActions[0].pattern, "github\\.com/acme\\/widgets$")
         XCTAssertEqual(action.tabActions[1].kind, .use)
-        XCTAssertEqual(action.tabActions[1].pattern, "github\\.com/anthropics\\/claude-code/issues")
+        XCTAssertEqual(action.tabActions[1].pattern, "github\\.com/acme\\/widgets/issues")
         XCTAssertEqual(action.tabActions[2].kind, .follow)
         XCTAssertEqual(action.tabActions[2].pattern, "github\\.com")
     }
