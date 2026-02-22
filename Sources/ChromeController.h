@@ -25,9 +25,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// Shared instance
 + (instancetype)shared;
 
-/// Check if Chrome is installed
-- (BOOL)isChromeInstalled;
-
 /// Open a URL in a named window (creates window if needed)
 /// @param urlString The URL to open
 /// @param windowName The givenName to match/create
