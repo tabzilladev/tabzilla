@@ -30,6 +30,9 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
     return (ChromeApplication *)[SBApplication applicationWithBundleIdentifier:bundleId];
 }
 
+// "Find-or-create" path: searches for an existing window by name and creates one if not found.
+// This is intentionally asymmetric with openURL:inWindowWithId:bundleId:error:, which expects
+// the window to already exist and returns an error if not found.
 - (BOOL)openURL:(NSString *)urlString
        inWindow:(NSString *)windowName
        bundleId:(NSString *)bundleId
