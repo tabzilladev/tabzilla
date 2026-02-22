@@ -1,4 +1,4 @@
-.PHONY: build debug test install uninstall register clean distclean run stop kill status dump reload test-url help
+.PHONY: build debug test install uninstall register clean distclean run stop kill status dump reload test-url version set-version help
 
 APP_NAME := Tabzilla
 BUNDLE_ID := dev.tabzilla.Tabzilla
@@ -107,6 +107,15 @@ test-url: debug
 	@test -n "$(URL)" || (echo "Usage: make test-url URL=https://example.com [CONFIG=path/to/config.yaml]" && exit 1)
 	@"$(XCODE_DEBUG_APP)/Contents/MacOS/$(APP_NAME)" test "$(URL)" $(if $(CONFIG),-c "$(CONFIG)",)
 
+# Print the current version (from CLI.swift)
+version:
+	@grep -o 'version: "[^"]*"' Sources/CLI.swift | grep -o '"[^"]*"' | tr -d '"'
+
+# Set version across all source files
+set-version:
+	@test -n "$(V)" || (echo "Usage: make set-version V=X.Y.Z" && exit 1)
+	@scripts/set-version.sh "$(V)"
+
 # Show help
 help:
 	@echo "Tabzilla Development Commands"
@@ -128,6 +137,10 @@ help:
 	@echo ""
 	@echo "  make test-url URL=<url> [CONFIG=<path>]"
 	@echo "                  Test which rule matches (uses debug build)"
+	@echo ""
+	@echo "  make version    Show current version"
+	@echo "  make set-version V=X.Y.Z"
+	@echo "                  Set version across all source files"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make install"

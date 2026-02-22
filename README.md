@@ -1,5 +1,9 @@
 # Tabzilla
 
+[![CI](https://github.com/tabzilladev/tabzilla/actions/workflows/ci.yml/badge.svg)](https://github.com/tabzilladev/tabzilla/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/tabzilladev/tabzilla)](https://github.com/tabzilladev/tabzilla/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A native macOS application that registers as the system's default browser and routes URLs to specific browsers (Chrome, Chrome Beta, etc.) based on user-defined rules.
 
 **Key feature**: Routes URLs to specific named browser windows (creating them if needed), enabling project-based and work/personal separation workflows.
