@@ -2,7 +2,7 @@
 
 ## Overview
 
-Tabzilla is a native macOS application that registers as the system's default browser and routes URLs to specific browsers/windows based on user-defined rules. The key feature is routing URLs to specific **named browser windows** (creating them if needed), enabling project-based and work/personal separation workflows.
+This document covers technical design, architecture decisions, and rationale. See [README.md](README.md) for user-facing documentation.
 
 ## Prior Art
 
@@ -40,10 +40,6 @@ Tabzilla is a native macOS application that registers as the system's default br
 | Query window's profile | Not exposed in Scripting Bridge | Not possible |
 | Open in tab group | Chrome Extension API only | Not in MVP |
 
-**Chrome Bundle IDs**:
-- Chrome: `com.google.Chrome`
-- Chrome Beta: `com.google.Chrome.beta`
-
 ### Window Targeting
 
 Chrome windows have two name-related properties:
@@ -55,7 +51,11 @@ Chrome windows have two name-related properties:
 ## Data Flow
 
 ```
-URL Click → Apple Event → RouteRequest → RuleEngine → RouteAction → Executor → Browser
+URL Click → Apple Event → RouteRequest → RuleEngine → RouteAction → Executor → [Scripting Bridge] → Browser
+          ╰─── macOS ──╯╰─────────────────────────── Tabzilla ───────────────────────────────────╯
+
+Shortcut files (.webloc/.url) → Apple Event → Delegate to default browser (bypass rules)
+          ╰──────────── macOS ─────────────╯╰──────────────── Tabzilla ──────────────────╯
 ```
 
 ### RouteRequest (Input)
@@ -79,72 +79,32 @@ struct RouteAction {
 }
 ```
 
-## Configuration
+## Configuration Design
 
-### File Locations (searched in order)
-1. `~/.config/tabz/config.yaml`
-2. `~/Library/Application Support/Tabzilla/config.yaml`
-3. `~/.tabz.yaml`
+See [README.md](README.md) for config file locations, syntax, and examples.
 
-### Example Config
-```yaml
-version: 1
+### Why YAML (not JavaScript)
+- Simpler than Finicky's JavaScript config; no runtime or JS knowledge required
+- Sufficient for regex-based rule matching
+- Human-readable and versionable in dotfiles
 
-defaults:
-  browser: com.google.Chrome
-  window: Default
+### Search Path Design
+Three locations are checked in order, covering XDG convention (`~/.config/tabz/`), macOS convention (`~/Library/Application Support/Tabzilla/`), and a simple dotfile fallback (`~/.tabz.yaml`). First found wins, so users can pick whichever convention fits their workflow.
 
-rules:
-  # Slack workspace routing
-  - sourceApp: ^com\.tinyspeck\.slackmacgap$
-    sourceWindowTitle: (?i)work
-    window: Work
+### FileWatcher Design
+`ConfigurationManager` uses `DispatchSource.makeFileSystemObjectSource` to watch the config file for writes. Atomic saves (write-to-temp + rename) are handled by also watching the parent directory for `.rename` events, then re-establishing the file watch.
 
-  # Domain-based routing
-  - url: (?i)corp\.example\.com
-    window: Work
+### First-Match-Wins Rationale
+Rules are evaluated in order and the first matching rule wins. This mirrors `iptables`/`nginx` conventions and makes precedence predictable: specific rules go first, catch-all last.
 
-  # Tab reuse for Google Docs
-  - url: docs\.google\.com/document/d/([^/]+)
-    useTab: docs\.google\.com/document/d/\1
+### ICU Regex Choice
+All matching uses `NSRegularExpression` (ICU regex). ICU is already available on-platform, supports full Unicode, and provides capture groups (`\1`, `\2`) that enable dynamic patterns in `useTab`/`focusTab`/`followTab`.
 
-  # Catch-all
-  - url: .*
+## CLI Design
 
-logging:
-  enabled: true
-  path: ~/Library/Logs/Tabzilla/tabz.log
-```
+See [README.md](README.md) for the full command reference.
 
-### Matching Rules
-- All matching uses ICU regex (`NSRegularExpression`)
-- Matchers: `url`, `sourceApp` (bundle ID), `sourceWindowTitle`
-- All conditions are AND'ed; omitted conditions match anything
-- Rules evaluated in order; first match wins
-
-### Tab Actions
-- `useTab: <pattern>` - Find matching tab, focus it, navigate to new URL
-- `focusTab: <pattern>` - Find matching tab, focus it without navigating
-- `followTab: <pattern>` - Find matching tab, open new URL in a new tab in the same window
-- Use `\1`, `\2` to reference capture groups from URL pattern
-
-## CLI Commands
-
-| Command | Description |
-|---------|-------------|
-| `tabz open <url>` | Route URL via rules and open in browser |
-| `tabz test <url>` | Show which rule matches (dry run) |
-| `tabz status` | Show daemon status and configuration |
-| `tabz dump` | Dump full state as JSON (for tools/agents) |
-| `tabz reload` | Signal daemon to reload config (SIGHUP) |
-| `tabz quit` | Stop the daemon (SIGTERM) |
-
-## Permissions Required
-
-1. **Automation**: System Settings → Privacy & Security → Automation → Tabzilla → Google Chrome
-2. **Accessibility**: System Settings → Privacy & Security → Accessibility → Tabzilla (required for `sourceWindowTitle` matching)
-3. After reinstalling, permissions must be re-granted (macOS tracks by code signature)
-4. Reset Automation with: `tccutil reset AppleEvents dev.tabzilla.Tabzilla`
+CLI subcommands are implemented with [ArgumentParser](https://github.com/apple/swift-argument-parser). `reload` sends `SIGHUP` to the daemon process; `quit` sends `SIGTERM`. The `open` subcommand routes a URL through the rule engine and opens it in the target browser, identical to a live URL click. The `dump` subcommand serializes full daemon state as JSON for use by tools and agents.
 
 ## Key Implementation Decisions
 

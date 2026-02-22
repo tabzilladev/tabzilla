@@ -132,12 +132,18 @@ The app binary can be invoked directly for CLI commands:
 # Create an alias for convenience
 alias tabz='/Applications/Tabzilla.app/Contents/MacOS/Tabzilla'
 
-# Test which rule matches a URL
+# Route a URL via rules and open in browser
+tabz open "https://example.com"
+
+# Test which rule matches a URL (dry run)
 tabz test "https://github.com/user/repo/pull/123"
 tabz test "https://example.com" --source-app "com.tinyspeck.slackmacgap"
 
 # Check daemon status and config
 tabz status
+
+# Dump full daemon state as JSON (for tools/agents)
+tabz dump
 
 # Reload configuration
 tabz reload
@@ -178,14 +184,11 @@ Tabzilla requires the following macOS permissions:
 - **Automation** - Required to control Chrome (window/tab management). macOS prompts on first use.
 - **Accessibility** - Required for `sourceWindowTitle` matching. Grant in System Settings → Privacy & Security → Accessibility.
 
-If permissions become stale after reinstalling, remove Tabzilla from the permission list and re-add it.
+See [Troubleshooting](#troubleshooting) below for step-by-step instructions to reset stale permissions.
 
 ## Troubleshooting
 
-```bash
-# Create an alias for convenience
-alias tabz='/Applications/Tabzilla.app/Contents/MacOS/Tabzilla'
-```
+These commands use the `tabz` alias defined in [CLI Usage](#cli-usage) above.
 
 **Check daemon status and config validity**:
 ```bash
@@ -212,6 +215,22 @@ logging:
 ```bash
 tail -f ~/Library/Logs/Tabzilla/tabz.log
 ```
+
+**URLs don't open after reinstall** (Automation permission stale):
+
+1. Open **System Settings → Privacy & Security → Automation**
+2. Ensure Tabzilla has Google Chrome toggled ON
+3. If missing, reset and restart:
+   ```bash
+   tccutil reset AppleEvents dev.tabzilla.Tabzilla
+   ```
+   Then relaunch Tabzilla and re-grant the permission when prompted.
+
+**`sourceWindowTitle` shows "unknown"** (Accessibility permission stale):
+
+1. Open **System Settings → Privacy & Security → Accessibility**
+2. Ensure Tabzilla is listed and toggled ON
+3. If reinstalled, remove Tabzilla from the list and re-add it (permissions can become stale after reinstall)
 
 ## Development
 

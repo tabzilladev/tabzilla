@@ -1,5 +1,5 @@
 # Tabzilla Configuration
-# https://github.com/bdupras/tabzilla
+# https://github.com/tabzilladev/tabzilla
 #
 # This file defines how URLs are routed to browsers and windows.
 # All matching uses ICU regex (NSRegularExpression).
