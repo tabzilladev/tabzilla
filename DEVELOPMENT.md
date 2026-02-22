@@ -5,7 +5,7 @@
 Requires macOS 13+ and Xcode 16+.
 
 ```bash
-git clone https://github.com/bdupras/tabzilla.git
+git clone https://github.com/tabzilladev/tabzilla.git
 cd tabzilla
 make install
 ```
@@ -20,31 +20,7 @@ After installing:
 
 Tabzilla uses Xcode for all builds because the project contains mixed Swift/Objective-C code (SPM doesn't support this). SPM is only used for running tests.
 
-Run `make help` for all available commands:
-
-```
-  make build      Build release app bundle
-  make debug      Build debug binary with Xcode
-  make test       Run unit tests
-  make install    Build, install to /Applications, register
-  make uninstall  Remove from /Applications
-  make register   Re-register with Launch Services
-  make clean      Remove build artifacts
-
-  make run        Start the daemon
-  make stop       Stop the daemon
-  make kill       Force kill all Tabzilla processes
-  make status     Show daemon status
-  make dump       Dump state of Tabzilla and browsers (JSON)
-  make reload     Reload configuration
-
-  make test-url URL=<url> [CONFIG=<path>]
-                  Test which rule matches (uses debug build)
-
-  make version    Show current version
-  make set-version V=X.Y.Z
-                  Set version across all source files
-```
+Run `make help` for all available commands.
 
 **Note**: Xcode build must use default DerivedData location. Custom SYMROOT breaks SPM dependency resolution.
 
@@ -151,60 +127,8 @@ tabzilla/
 
 ## Architecture
 
-### Data Flow
-
-```
-URL Click → Apple Event → RouteRequest → RuleEngine → RouteAction → Executor → [Scripting Bridge] → Browser
-          ╰─── macOS ──╯╰─────────────────────────── Tabzilla ─────────────────────────╯
-
-Shortcut files (.webloc/.url) → Apple Event → Delegate to default: browser (bypass rules)
-          ╰──────────── macOS ─────────────╯╰──────────────── Tabzilla ─────────────────────╯
-```
-
-### Key Components
-
-- **RuleEngine**: Pure functions for matching URLs against rules
-- **Executor**: Orchestrates browser control
-- **ChromeController**: Objective-C Scripting Bridge for Chrome automation
-- **ConfigurationManager**: YAML loading with file watching for live reload
-
-### Browser Control (Scripting Bridge)
-
-Chrome automation uses Objective-C Scripting Bridge rather than AppleScript strings for type safety and performance.
-
-Key points:
-- Windows are targeted by `givenName` property (persists independently of tab titles)
-- Must use `objectWithID:` to get stable references for windows and tabs
-- Tab actions (`useTab`/`focusTab`/`followTab`) use regex matching against tab URLs
+See [DESIGN.md](DESIGN.md) for architecture, data flow, and key implementation decisions.
 
 ## Troubleshooting
 
-### URLs don't open after reinstall
-
-1. Check **System Settings → Privacy & Security → Automation**
-2. Ensure Tabzilla has Google Chrome toggled ON
-3. If missing, reset and restart:
-   ```bash
-   tccutil reset AppleEvents dev.tabzilla.Tabzilla
-   make kill && make run
-   ```
-
-### sourceWindowTitle shows "unknown"
-
-1. Check **System Settings → Privacy & Security → Accessibility**
-2. Ensure Tabzilla is listed and toggled ON
-3. If reinstalled, remove Tabzilla from the list and re-add it (permissions can become stale)
-
-### Enable logging
-
-Add to your config:
-```yaml
-logging:
-  enabled: true
-  path: ~/Library/Logs/Tabzilla/tabz.log
-```
-
-View logs:
-```bash
-tail -f ~/Library/Logs/Tabzilla/tabz.log
-```
+See [README.md](README.md) for troubleshooting steps.
