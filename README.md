@@ -20,7 +20,17 @@ A native macOS application that registers as the system's default browser and ro
 
 ## Installation
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) to build from source.
+### Homebrew (recommended)
+
+```bash
+brew install --cask tabzilladev/tap/tabzilla
+```
+
+### Build from source
+
+See [DEVELOPMENT.md](DEVELOPMENT.md) for building from source.
+
+### Set as default browser
 
 After installing, set Tabzilla as your default browser:
 
