@@ -12,6 +12,58 @@ struct CLI: ParsableCommand {
     )
 }
 
+// MARK: - Route Helper
+
+private enum RouteHelper {
+    struct LoadedRoute {
+        let config: Config
+        let configPath: String?
+        let action: RouteAction
+    }
+
+    static func loadAndRoute(url: URL, configPath: String?, sourceApp: String?, sourceWindowTitle: String?) throws -> LoadedRoute {
+        let loadedConfig: Config
+        let resolvedConfigPath: String?
+        do {
+            if let path = configPath {
+                let expandedPath = (path as NSString).expandingTildeInPath
+                loadedConfig = try ConfigurationManager.loadConfig(from: expandedPath)
+                resolvedConfigPath = expandedPath
+            } else {
+                loadedConfig = try ConfigurationManager.loadConfig()
+                resolvedConfigPath = ConfigurationManager.findConfigPath()
+            }
+        } catch {
+            throw ValidationError("Failed to load config: \(error.localizedDescription)")
+        }
+
+        let engine = RuleEngine(config: loadedConfig)
+        let action = engine.testMatch(url: url, sourceApp: sourceApp, sourceWindowTitle: sourceWindowTitle)
+        return LoadedRoute(config: loadedConfig, configPath: resolvedConfigPath, action: action)
+    }
+
+    static func printRouteResult(action: RouteAction, indent: String = "") {
+        print("\(indent)Matched Rule: \(action.matchedRule ?? "(default)")")
+        print("\(indent)Browser:      \(action.browser)")
+        if let window = action.windowTarget {
+            print("\(indent)Window:       \(window.name)")
+        }
+        if !action.tabActions.isEmpty {
+            let tabDescriptions = action.tabActions.map { tab -> String in
+                let tabType: String
+                switch tab.kind {
+                case .focus: tabType = "focusTab"
+                case .use: tabType = "useTab"
+                case .follow: tabType = "followTab"
+                }
+                return "\(tabType)=\"\(tab.pattern)\""
+            }
+            print("\(indent)Tab Actions:  \(tabDescriptions.joined(separator: " -> "))")
+        }
+        print("\(indent)Final URL:    \(action.rewrittenURL)")
+    }
+}
+
 // MARK: - Open Command
 
 extension CLI {
@@ -40,34 +92,12 @@ extension CLI {
                 throw ValidationError("Invalid URL: \(url)")
             }
 
-            // Load config
-            let loadedConfig: Config
-            let configPath: String?
-            do {
-                if let path = config {
-                    let expandedPath = (path as NSString).expandingTildeInPath
-                    loadedConfig = try ConfigurationManager.loadConfig(from: expandedPath)
-                    configPath = expandedPath
-                } else {
-                    loadedConfig = try ConfigurationManager.loadConfig()
-                    configPath = ConfigurationManager.findConfigPath()
-                }
-            } catch {
-                throw ValidationError("Failed to load config: \(error.localizedDescription)")
-            }
+            let route = try RouteHelper.loadAndRoute(url: openURL, configPath: config, sourceApp: sourceApp, sourceWindowTitle: sourceWindowTitle)
 
             // Configure logger from config
-            if let logging = loadedConfig.logging {
+            if let logging = route.config.logging {
                 Logger.shared.configure(enabled: logging.enabled, path: logging.path)
             }
-
-            // Create rule engine and match
-            let engine = RuleEngine(config: loadedConfig)
-            let action = engine.testMatch(
-                url: openURL,
-                sourceApp: sourceApp,
-                sourceWindowTitle: sourceWindowTitle
-            )
 
             if verbose {
                 print("URL:          \(url)")
@@ -78,33 +108,16 @@ extension CLI {
                     print("Source Title: \(sourceWindowTitle)")
                 }
                 print("")
-                print("Matched Rule: \(action.matchedRule ?? "(default)")")
-                print("Browser:      \(action.browser)")
-                if let window = action.windowTarget {
-                    print("Window:       \(window.name)")
-                }
-                if !action.tabActions.isEmpty {
-                    let tabDescriptions = action.tabActions.map { tab -> String in
-                        let tabType: String
-                        switch tab.kind {
-                        case .focus: tabType = "focusTab"
-                        case .use: tabType = "useTab"
-                        case .follow: tabType = "followTab"
-                        }
-                        return "\(tabType)=\"\(tab.pattern)\""
-                    }
-                    print("Tab Actions:  \(tabDescriptions.joined(separator: " -> "))")
-                }
-                print("Final URL:    \(action.rewrittenURL)")
-                print("Config:       \(configPath ?? "default")")
+                RouteHelper.printRouteResult(action: route.action)
+                print("Config:       \(route.configPath ?? "default")")
                 print("")
             }
 
             // Execute the action
             let executor = Executor()
             do {
-                Logger.shared.log("Opening URL: \(url) -> browser=\(action.browser), window=\(action.windowTarget?.name ?? "none")")
-                try executor.execute(action: action)
+                Logger.shared.log("Opening URL: \(url) -> browser=\(route.action.browser), window=\(route.action.windowTarget?.name ?? "none")")
+                try executor.execute(action: route.action)
                 if verbose {
                     print("Opened successfully.")
                 }
@@ -144,29 +157,7 @@ extension CLI {
                 throw ValidationError("Invalid URL: \(url)")
             }
 
-            // Load config
-            let loadedConfig: Config
-            let configPath: String?
-            do {
-                if let path = config {
-                    let expandedPath = (path as NSString).expandingTildeInPath
-                    loadedConfig = try ConfigurationManager.loadConfig(from: expandedPath)
-                    configPath = expandedPath
-                } else {
-                    loadedConfig = try ConfigurationManager.loadConfig()
-                    configPath = ConfigurationManager.findConfigPath()
-                }
-            } catch {
-                throw ValidationError("Failed to load config: \(error.localizedDescription)")
-            }
-
-            // Create rule engine and test
-            let engine = RuleEngine(config: loadedConfig)
-            let action = engine.testMatch(
-                url: testURL,
-                sourceApp: sourceApp,
-                sourceWindowTitle: sourceWindowTitle
-            )
+            let route = try RouteHelper.loadAndRoute(url: testURL, configPath: config, sourceApp: sourceApp, sourceWindowTitle: sourceWindowTitle)
 
             // Print results
             print("URL:          \(url)")
@@ -178,29 +169,12 @@ extension CLI {
             }
             print("")
             print("Result:")
-            print("  Matched Rule: \(action.matchedRule ?? "(default)")")
-            print("  Browser:      \(action.browser)")
-            if let window = action.windowTarget {
-                print("  Window:       \(window.name)")
-            }
-            if !action.tabActions.isEmpty {
-                let tabDescriptions = action.tabActions.map { tab -> String in
-                    let tabType: String
-                    switch tab.kind {
-                    case .focus: tabType = "focusTab"
-                    case .use: tabType = "useTab"
-                    case .follow: tabType = "followTab"
-                    }
-                    return "\(tabType)=\"\(tab.pattern)\""
-                }
-                print("  Tab Actions:  \(tabDescriptions.joined(separator: " -> "))")
-            }
-            print("  Final URL:    \(action.rewrittenURL)")
+            RouteHelper.printRouteResult(action: route.action, indent: "  ")
 
             if verbose {
                 print("")
-                print("Config loaded from: \(configPath ?? "default")")
-                print("Total rules: \(loadedConfig.rules.count)")
+                print("Config loaded from: \(route.configPath ?? "default")")
+                print("Total rules: \(route.config.rules.count)")
             }
         }
     }
