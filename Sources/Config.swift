@@ -87,11 +87,7 @@ enum ConfigurationManager {
             return try loadConfig(from: configPath)
         }
 
-        // No config file found - create default and load it
-        try createDefaultConfig()
-        if let configPath = findConfigPath() {
-            return try loadConfig(from: configPath)
-        }
+        // No config file found - return in-memory defaults
         return Config()
     }
 
@@ -103,68 +99,6 @@ enum ConfigurationManager {
         return try decoder.decode(Config.self, from: contents)
     }
 
-    /// Create default config file at the preferred location
-    static func createDefaultConfig() throws {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let configDir = "\(home)/.config/tabz"
-        let configPath = "\(configDir)/config.yaml"
-
-        // Create directory if needed
-        try FileManager.default.createDirectory(
-            atPath: configDir,
-            withIntermediateDirectories: true
-        )
-
-        // Load default config from bundle resources or use embedded default
-        let defaultConfig = defaultConfigYAML
-        try defaultConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
-    }
-
-    /// Default configuration YAML content
-    private static var defaultConfigYAML: String {
-        """
-        # Tabzilla Configuration
-        # https://github.com/bdupras/tabzilla
-        #
-        # This file defines how URLs are routed to browsers and windows.
-        # All matching uses ICU regex (NSRegularExpression).
-        #
-        # Config file search order:
-        #   1. ~/.config/tabz/config.yaml
-        #   2. ~/Library/Application Support/Tabzilla/config.yaml
-        #   3. ~/.tabz.yaml
-
-        version: 1
-
-        defaults:
-          browser: com.google.Chrome
-          # window: Default  # Optional: omit to let the browser decide
-
-        rules:
-          # Example: Route work domains to a specific browser and window
-          # - url: (?i)corp\\.example\\.com|jira\\.example\\.com
-          #   browser: com.google.Chrome.beta
-          #   window: Work
-
-          # Example: Route based on source app (Slack workspace)
-          # - sourceApp: ^com\\.tinyspeck\\.slackmacgap$
-          #   sourceWindowTitle: (?i)work
-          #   browser: com.google.Chrome.beta
-          #   window: Work
-
-          # Example: Tab reuse for Google Docs (reuse tab for same document)
-          # - url: docs\\.google\\.com/document/d/([^/]+)
-          #   useTab: docs\\.google\\.com/document/d/\\1
-
-          # Catch-all rule (uses defaults)
-          - url: .*
-
-        # Optional: Enable logging for debugging
-        # logging:
-        #   enabled: true
-        #   path: ~/Library/Logs/Tabzilla/tabz.log
-        """
-    }
 }
 
 // MARK: - File Watcher
