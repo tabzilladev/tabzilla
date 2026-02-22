@@ -163,6 +163,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Iterate through all documents in the list
         let itemCount = listDescriptor.numberOfItems
+        guard itemCount > 0 else { return }
         for i in 1...itemCount {
             guard let itemDescriptor = listDescriptor.atIndex(i) else {
                 continue
