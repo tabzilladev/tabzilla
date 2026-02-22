@@ -60,13 +60,7 @@ struct Config: Codable {
 
 // MARK: - Configuration Manager
 
-class ConfigurationManager {
-    let config: Config
-
-    init(config: Config) {
-        self.config = config
-    }
-
+enum ConfigurationManager {
     /// Search paths for config file (in order of priority)
     static var searchPaths: [String] {
         let home = FileManager.default.homeDirectoryForCurrentUser.path

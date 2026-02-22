@@ -20,7 +20,7 @@ struct TabzillaApp {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    private var configManager: ConfigurationManager?
+    private var config: Config?
     private var ruleEngine: RuleEngine?
     private var executor: Executor?
     private var fileWatcher: FileWatcher?
@@ -70,7 +70,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func loadConfiguration() {
         do {
             let config = try ConfigurationManager.loadConfig()
-            configManager = ConfigurationManager(config: config)
+            self.config = config
             ruleEngine = RuleEngine(config: config)
             executor = Executor()
 
@@ -100,7 +100,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func reloadConfiguration() {
         do {
             let config = try ConfigurationManager.loadConfig()
-            configManager = ConfigurationManager(config: config)
+            self.config = config
             ruleEngine = RuleEngine(config: config)
 
             // Reconfigure logger from config
@@ -225,7 +225,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func openFileWithDefaultBrowser(_ fileURL: URL) {
-        guard let config = configManager?.config else {
+        guard let config = config else {
             Logger.shared.log("No config, falling back to NSWorkspace.open for \(fileURL.lastPathComponent)")
             NSWorkspace.shared.open(fileURL)
             return
