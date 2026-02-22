@@ -13,7 +13,6 @@ NS_ASSUME_NONNULL_BEGIN
 @interface ChromeTabInfo : NSObject
 @property (nonatomic, copy) NSString *windowId;
 @property (nonatomic, copy) NSString *tabId;
-@property (nonatomic, assign) NSInteger windowIndex;  // Deprecated, use windowId
 @property (nonatomic, assign) NSInteger tabIndex;     // Used for activeTabIndex
 @property (nonatomic, copy) NSString *windowName;
 @property (nonatomic, copy) NSString *tabURL;
