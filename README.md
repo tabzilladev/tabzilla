@@ -1,6 +1,6 @@
-<img src="assets/tabzilla-banner.svg" width="120" align="right" />
+<img src="assets/tabzilla-banner.svg" height="80" align="right" />
 
-# Tabzilla
+# Tabzilla 
 
 [![CI](https://github.com/tabzilladev/tabzilla/actions/workflows/ci.yml/badge.svg)](https://github.com/tabzilladev/tabzilla/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/tabzilladev/tabzilla)](https://github.com/tabzilladev/tabzilla/releases/latest)
