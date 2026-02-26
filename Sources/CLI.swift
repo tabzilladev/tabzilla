@@ -60,7 +60,7 @@ private enum RouteHelper {
             }
             print("\(indent)Tab Actions:  \(tabDescriptions.joined(separator: " -> "))")
         }
-        print("\(indent)Final URL:    \(action.rewrittenURL)")
+        print("\(indent)Final URL:    \(action.routeUrl)")
     }
 }
 

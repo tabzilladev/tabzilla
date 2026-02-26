@@ -38,12 +38,12 @@ struct Executor {
             try executeChromeAction(action: action, browserBundleId: bundleId)
         } else {
             // Fallback for non-Chrome browsers - just open URL
-            try openURLInBrowser(action.rewrittenURL, bundleId: bundleId)
+            try openURLInBrowser(action.routeUrl, bundleId: bundleId)
         }
     }
 
     private func executeChromeAction(action: RouteAction, browserBundleId: String) throws {
-        let url = action.rewrittenURL.absoluteString
+        let url = action.routeUrl.absoluteString
         let preferredWindow = action.windowTarget?.name ?? ""
 
         // Fetch tab cache once for all tab actions (avoids repeated IPC calls)
@@ -108,7 +108,7 @@ struct Executor {
         // No tab actions matched - fall through to window targeting or browser default
         guard let windowTarget = action.windowTarget else {
             Logger.shared.log("Opening URL with browser's default behavior")
-            try openURLInBrowser(action.rewrittenURL, bundleId: browserBundleId)
+            try openURLInBrowser(action.routeUrl, bundleId: browserBundleId)
             return
         }
 

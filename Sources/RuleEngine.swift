@@ -13,7 +13,7 @@ struct RouteRequest {
 /// Output from the rule engine
 struct RouteAction {
     let matchedRule: String?
-    let rewrittenURL: URL
+    let routeUrl: URL
     let browser: String
     let windowTarget: WindowTarget?
     let tabActions: [TabAction]
@@ -56,7 +56,7 @@ struct RuleEngine {
         // No rule matched - use defaults
         return RouteAction(
             matchedRule: nil,
-            rewrittenURL: request.url,
+            routeUrl: request.url,
             browser: config.defaults.browser,
             windowTarget: config.defaults.window.map { WindowTarget(name: $0) },
             tabActions: []
@@ -114,7 +114,7 @@ struct RuleEngine {
 
         return RouteAction(
             matchedRule: rule.name ?? rule.url ?? "unnamed",
-            rewrittenURL: request.url,
+            routeUrl: request.url,
             browser: browser,
             windowTarget: windowTarget,
             tabActions: tabActions
