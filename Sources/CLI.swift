@@ -10,7 +10,7 @@ struct CLI: ParsableCommand {
         commandName: "tabz",
         abstract: "URL routing daemon for macOS",
         version: "0.1.0",
-        subcommands: [Open.self, Test.self, Status.self, Dump.self, Reload.self, Quit.self],
+        subcommands: [Open.self, Test.self, Status.self, Dump.self, Reload.self, Stop.self],
         defaultSubcommand: nil
     )
 }
@@ -412,16 +412,16 @@ extension CLI {
     }
 }
 
-// MARK: - Quit Command
+// MARK: - Stop Command
 
 extension CLI {
-    struct Quit: ParsableCommand {
+    struct Stop: ParsableCommand {
         static var configuration = CommandConfiguration(
             abstract: "Stop the daemon"
         )
 
         func run() throws {
-            try DaemonPID.sendSignal(SIGTERM, name: "quit")
+            try DaemonPID.sendSignal(SIGTERM, name: "stop")
         }
     }
 }

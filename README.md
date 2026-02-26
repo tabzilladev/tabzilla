@@ -163,7 +163,7 @@ tabz dump
 tabz reload
 
 # Stop the daemon
-tabz quit
+tabz stop
 ```
 
 **View logs**:
@@ -184,7 +184,7 @@ log show --predicate 'subsystem == "dev.tabzilla.Tabzilla"' --info --last 1h
 3. If missing, reset, restart and re-grant the permission when prompted:
    ```bash
    tccutil reset AppleEvents dev.tabzilla.Tabzilla
-   tabz quit
+   tabz stop
    tabz open "https://example.com"
    ```
 

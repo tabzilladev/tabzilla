@@ -111,13 +111,13 @@ ci-watch: ## Watch the most recent CI run until it completes
 
 ##@ Daemon
 
-.PHONY: run
-run: ## Start the installed app (daemon mode)
+.PHONY: start
+start: ## Start the installed app (daemon mode)
 	@open "$(INSTALLED_APP)"
 
 .PHONY: stop
 stop: ## Stop the daemon gracefully
-	@"$(INSTALLED_APP)/Contents/MacOS/$(APP_NAME)" quit 2>/dev/null || echo "Daemon not running"
+	@"$(INSTALLED_APP)/Contents/MacOS/$(APP_NAME)" stop 2>/dev/null || echo "Daemon not running"
 	@sleep 1
 	@if pgrep -f "$(APP_NAME).app/Contents/MacOS/$(APP_NAME)" >/dev/null 2>&1; then \
 		echo "Error: Tabzilla process(es) still running (possibly launched from Xcode or DerivedData)"; \

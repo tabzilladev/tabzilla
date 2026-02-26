@@ -14,7 +14,7 @@ This builds the app and installs it to `/Applications/Tabzilla.app`.
 
 After installing:
 1. Set as default browser: **System Settings** > **Desktop & Dock** > **Default web browser** > **Tabzilla**
-2. Start the daemon: `make run`
+2. Start the daemon: `make start`
 
 ## Build System
 
@@ -88,7 +88,7 @@ After making changes:
 
 ```bash
 make install                              # Rebuild and install
-make stop && make run                     # Restart daemon
+make stop && make start                   # Restart daemon
 open https://example.com                  # Test via default browser
 log stream --predicate 'subsystem == "dev.tabzilla.Tabzilla"' --info  # Watch logs
 ```
@@ -108,7 +108,7 @@ tabzilla/
 │   └── release.yml                # Release workflow (tag trigger)
 ├── Sources/
 │   ├── TabzillaApp.swift           # App entry, AppDelegate, URL handling
-│   ├── CLI.swift                   # test/status/reload/quit/open subcommands
+│   ├── CLI.swift                   # test/status/reload/stop/open subcommands
 │   ├── Config.swift                # YAML models, ConfigurationManager, ConfigFingerprint
 │   ├── RuleEngine.swift            # RouteRequest → RouteAction matching
 │   ├── Executor.swift              # Browser control via Scripting Bridge
