@@ -230,7 +230,7 @@ extension CLI {
 private struct DumpOutput: Encodable {
     let timestamp: String
     let daemon: DaemonState
-    let config: ConfigState
+    let config: ConfigInfo
     let browsers: [BrowserState]
 }
 
@@ -239,19 +239,12 @@ private struct DaemonState: Encodable {
     let pid: pid_t?
 }
 
-private struct ConfigState: Encodable {
+private struct ConfigInfo: Encodable {
     let searchPaths: [String]
     let path: String?
     let valid: Bool
-    let version: Int?
-    let ruleCount: Int?
-    let defaults: DefaultsState?
+    let config: Config?
     let error: String?
-}
-
-private struct DefaultsState: Encodable {
-    let browser: String
-    let window: String?
 }
 
 private struct BrowserState: Encodable {
@@ -317,28 +310,24 @@ extension CLI {
             // Config state
             let configPath = config.map { ($0 as NSString).expandingTildeInPath } ?? ConfigurationManager.findConfigPath()
 
-            let configState: ConfigState
+            let configInfo: ConfigInfo
             let browsers: [BrowserState]
             do {
                 let loadedConfig = try ConfigurationManager.resolveConfig(from: config)
-                configState = ConfigState(
+                configInfo = ConfigInfo(
                     searchPaths: ConfigurationManager.searchPaths,
                     path: configPath,
                     valid: true,
-                    version: loadedConfig.version,
-                    ruleCount: loadedConfig.rules.count,
-                    defaults: DefaultsState(browser: loadedConfig.defaults.browser, window: loadedConfig.defaults.window),
+                    config: loadedConfig,
                     error: nil
                 )
                 browsers = getBrowserState(for: loadedConfig)
             } catch {
-                configState = ConfigState(
+                configInfo = ConfigInfo(
                     searchPaths: ConfigurationManager.searchPaths,
                     path: configPath,
                     valid: false,
-                    version: nil,
-                    ruleCount: nil,
-                    defaults: nil,
+                    config: nil,
                     error: error.localizedDescription
                 )
                 browsers = []
@@ -347,7 +336,7 @@ extension CLI {
             let output = DumpOutput(
                 timestamp: ISO8601DateFormatter().string(from: Date()),
                 daemon: daemonState,
-                config: configState,
+                config: configInfo,
                 browsers: browsers
             )
 
