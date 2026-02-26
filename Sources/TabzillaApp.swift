@@ -9,7 +9,13 @@ struct TabzillaApp {
         // The `-NS` and `-Apple` prefix filter is necessary because macOS injects system flags
         // (like `-NSDocumentRevisionsDebugMode`, `-ApplePersistenceIgnoreState`) when launching
         // the app bundle.
-        if args.count > 1 && !args[1].starts(with: "-NS") && !args[1].starts(with: "-Apple") {
+        let hasUserArgs = args.count > 1 && !args[1].starts(with: "-NS") && !args[1].starts(with: "-Apple")
+        if hasUserArgs {
+            CLI.main()
+        } else if args.count == 1 && isatty(STDIN_FILENO) != 0 {
+            // No arguments from an interactive terminal: print usage and exit.
+            // When launched via `open`, Launch Services, or launchd, stdin is not a tty,
+            // so daemon mode is unaffected.
             CLI.main()
         } else {
             // Daemon mode
