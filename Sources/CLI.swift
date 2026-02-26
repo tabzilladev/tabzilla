@@ -26,20 +26,13 @@ private enum RouteHelper {
 
     static func loadAndRoute(url: URL, configPath: String?, sourceApp: String?, sourceWindowTitle: String?) throws -> LoadedRoute {
         let loadedConfig: Config
-        let resolvedConfigPath: String?
         do {
-            if let path = configPath {
-                let expandedPath = (path as NSString).expandingTildeInPath
-                loadedConfig = try ConfigurationManager.loadConfig(from: expandedPath)
-                resolvedConfigPath = expandedPath
-            } else {
-                loadedConfig = try ConfigurationManager.loadConfig().config
-                resolvedConfigPath = ConfigurationManager.findConfigPath()
-            }
+            loadedConfig = try ConfigurationManager.resolveConfig(from: configPath)
         } catch {
             throw ValidationError("Failed to load config: \(error.localizedDescription)")
         }
 
+        let resolvedConfigPath = configPath.map { ($0 as NSString).expandingTildeInPath } ?? ConfigurationManager.findConfigPath()
         let engine = RuleEngine(config: loadedConfig)
         let action = engine.testMatch(url: url, sourceApp: sourceApp, sourceWindowTitle: sourceWindowTitle)
         return LoadedRoute(config: loadedConfig, configPath: resolvedConfigPath, action: action)
@@ -322,23 +315,12 @@ extension CLI {
             let daemonState = DaemonState(running: isRunning, pid: isRunning ? pid : nil)
 
             // Config state
-            let configPath: String?
-            if let path = config {
-                configPath = (path as NSString).expandingTildeInPath
-            } else {
-                configPath = ConfigurationManager.findConfigPath()
-            }
+            let configPath = config.map { ($0 as NSString).expandingTildeInPath } ?? ConfigurationManager.findConfigPath()
 
             let configState: ConfigState
             let browsers: [BrowserState]
             do {
-                let loadedConfig: Config
-                if let path = config {
-                    let expandedPath = (path as NSString).expandingTildeInPath
-                    loadedConfig = try ConfigurationManager.loadConfig(from: expandedPath)
-                } else {
-                    loadedConfig = try ConfigurationManager.loadConfig().config
-                }
+                let loadedConfig = try ConfigurationManager.resolveConfig(from: config)
                 configState = ConfigState(
                     searchPaths: ConfigurationManager.searchPaths,
                     path: configPath,

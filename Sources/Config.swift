@@ -100,6 +100,14 @@ enum ConfigurationManager {
         return try decoder.decode(Config.self, from: contents)
     }
 
+    /// Resolve and load config from an optional explicit path, or search defaults.
+    static func resolveConfig(from configPath: String?) throws -> Config {
+        if let path = configPath {
+            return try loadConfig(from: path)
+        }
+        return try loadConfig().config
+    }
+
 }
 
 // MARK: - Config Freshness
