@@ -272,24 +272,6 @@ private struct TabState: Encodable {
     let active: Bool
 }
 
-private func convertWindows(_ rawWindows: [NSDictionary]) -> [WindowState] {
-    return rawWindows.compactMap { w in
-        guard let id = w["id"] as? String,
-              let givenName = w["givenName"] as? String,
-              let tabCount = w["tabCount"] as? Int,
-              let rawTabs = w["tabs"] as? [[String: Any]] else { return nil }
-        let tabs = rawTabs.compactMap { t -> TabState? in
-            guard let tabId = t["id"] as? String,
-                  let index = t["index"] as? Int,
-                  let url = t["url"] as? String,
-                  let title = t["title"] as? String,
-                  let active = t["active"] as? Bool else { return nil }
-            return TabState(id: tabId, index: index, url: url, title: title, active: active)
-        }
-        return WindowState(id: id, givenName: givenName, tabCount: tabCount, tabs: tabs)
-    }
-}
-
 // MARK: - Dump Command
 
 extension CLI {
@@ -394,6 +376,24 @@ extension CLI {
         /// Check if an app is running by bundle ID
         private func isAppRunning(bundleId: String) -> Bool {
             return NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == bundleId }
+        }
+
+        private func convertWindows(_ rawWindows: [NSDictionary]) -> [WindowState] {
+            return rawWindows.compactMap { w in
+                guard let id = w["id"] as? String,
+                      let givenName = w["givenName"] as? String,
+                      let tabCount = w["tabCount"] as? Int,
+                      let rawTabs = w["tabs"] as? [[String: Any]] else { return nil }
+                let tabs = rawTabs.compactMap { t -> TabState? in
+                    guard let tabId = t["id"] as? String,
+                          let index = t["index"] as? Int,
+                          let url = t["url"] as? String,
+                          let title = t["title"] as? String,
+                          let active = t["active"] as? Bool else { return nil }
+                    return TabState(id: tabId, index: index, url: url, title: title, active: active)
+                }
+                return WindowState(id: id, givenName: givenName, tabCount: tabCount, tabs: tabs)
+            }
         }
     }
 }
