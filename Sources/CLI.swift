@@ -1,6 +1,9 @@
 import Foundation
 import ArgumentParser
 import AppKit
+import os
+
+private let logger = Logger(subsystem: "dev.tabzilla.Tabzilla", category: "cli")
 
 struct CLI: ParsableCommand {
     static var configuration = CommandConfiguration(
@@ -60,7 +63,7 @@ private enum RouteHelper {
             }
             print("\(indent)Tab Actions:  \(tabDescriptions.joined(separator: " -> "))")
         }
-        print("\(indent)Final URL:    \(action.routeUrl)")
+        print("\(indent)Final URL:    \(action.routeURL)")
     }
 }
 
@@ -94,11 +97,6 @@ extension CLI {
 
             let route = try RouteHelper.loadAndRoute(url: openURL, configPath: config, sourceApp: sourceApp, sourceWindowTitle: sourceWindowTitle)
 
-            // Configure logger from config
-            if let logging = route.config.logging {
-                Logger.shared.configure(enabled: logging.enabled, path: logging.path)
-            }
-
             if verbose {
                 print("URL:          \(url)")
                 if let sourceApp = sourceApp {
@@ -116,13 +114,13 @@ extension CLI {
             // Execute the action
             let executor = Executor()
             do {
-                Logger.shared.log("Opening URL: \(url) -> browser=\(route.action.browser), window=\(route.action.windowTarget?.name ?? "none")")
+                logger.info("Opening URL: \(url, privacy: .private) -> browser=\(route.action.browser, privacy: .public), window=\(route.action.windowTarget?.name ?? "none", privacy: .public)")
                 try executor.execute(action: route.action)
                 if verbose {
                     print("Opened successfully.")
                 }
             } catch {
-                Logger.shared.log("Failed to open URL: \(error)")
+                logger.error("Failed to open URL: \(error)")
                 throw ValidationError("Failed to open URL: \(error.localizedDescription)")
             }
         }
@@ -226,16 +224,6 @@ extension CLI {
                 print("  Defaults:")
                 print("    Browser: \(config.defaults.browser)")
                 print("    Window:  \(config.defaults.window ?? "(browser default)")")
-                if let logging = config.logging {
-                    print("  Logging:")
-                    print("    Enabled: \(logging.enabled)")
-                    if let logPath = logging.path {
-                        let expandedPath = (logPath as NSString).expandingTildeInPath
-                        let exists = FileManager.default.fileExists(atPath: expandedPath)
-                        let marker = exists ? "✓" : " "
-                        print("    Path:    \(marker) \(logPath)")
-                    }
-                }
             } catch {
                 print("Config valid: No")
                 print("  Error: \(error.localizedDescription)")
@@ -265,18 +253,12 @@ private struct ConfigState: Encodable {
     let version: Int?
     let ruleCount: Int?
     let defaults: DefaultsState?
-    let logging: LoggingState?
     let error: String?
 }
 
 private struct DefaultsState: Encodable {
     let browser: String
     let window: String?
-}
-
-private struct LoggingState: Encodable {
-    let enabled: Bool
-    let path: String?
 }
 
 private struct BrowserState: Encodable {
@@ -357,7 +339,6 @@ extension CLI {
                 } else {
                     loadedConfig = try ConfigurationManager.loadConfig().config
                 }
-                let loggingState = loadedConfig.logging.map { LoggingState(enabled: $0.enabled, path: $0.path) }
                 configState = ConfigState(
                     searchPaths: ConfigurationManager.searchPaths,
                     path: configPath,
@@ -365,7 +346,6 @@ extension CLI {
                     version: loadedConfig.version,
                     ruleCount: loadedConfig.rules.count,
                     defaults: DefaultsState(browser: loadedConfig.defaults.browser, window: loadedConfig.defaults.window),
-                    logging: loggingState,
                     error: nil
                 )
                 browsers = getBrowserState(for: loadedConfig)
@@ -377,7 +357,6 @@ extension CLI {
                     version: nil,
                     ruleCount: nil,
                     defaults: nil,
-                    logging: nil,
                     error: error.localizedDescription
                 )
                 browsers = []

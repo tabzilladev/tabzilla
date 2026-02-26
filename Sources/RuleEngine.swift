@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let logger = Logger(subsystem: "dev.tabzilla.Tabzilla", category: "rules")
 
 // MARK: - Data Structures
 
@@ -13,7 +16,7 @@ struct RouteRequest {
 /// Output from the rule engine
 struct RouteAction {
     let matchedRule: String?
-    let routeUrl: URL
+    let routeURL: URL
     let browser: String
     let windowTarget: WindowTarget?
     let tabActions: [TabAction]
@@ -56,7 +59,7 @@ struct RuleEngine {
         // No rule matched - use defaults
         return RouteAction(
             matchedRule: nil,
-            routeUrl: request.url,
+            routeURL: request.url,
             browser: config.defaults.browser,
             windowTarget: config.defaults.window.map { WindowTarget(name: $0) },
             tabActions: []
@@ -114,7 +117,7 @@ struct RuleEngine {
 
         return RouteAction(
             matchedRule: rule.name ?? rule.url ?? "unnamed",
-            routeUrl: request.url,
+            routeURL: request.url,
             browser: browser,
             windowTarget: windowTarget,
             tabActions: tabActions
@@ -145,7 +148,7 @@ struct RuleEngine {
 
             return (true, groups)
         } catch {
-            Logger.shared.log("Invalid regex pattern: \(pattern) - \(error)")
+            logger.error("Invalid regex pattern: \(pattern, privacy: .private) - \(error)")
             return nil
         }
     }

@@ -8,7 +8,16 @@
 #import "ChromeController.h"
 #import "Chrome.h"
 #import <ScriptingBridge/ScriptingBridge.h>
-#import "Tabzilla-Swift.h"
+#import <os/log.h>
+
+static os_log_t ChromeLogger(void) {
+    static os_log_t log;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        log = os_log_create("dev.tabzilla.Tabzilla", "chrome");
+    });
+    return log;
+}
 
 NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
 
@@ -216,7 +225,7 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
                                                                            options:0
                                                                              error:&regexError];
     if (regexError) {
-        [[Logger shared] log:[NSString stringWithFormat:@"ChromeController: Invalid regex pattern: %@", pattern]];
+        os_log_error(ChromeLogger(), "ChromeController: Invalid regex pattern: %{private}@", pattern);
         return nil;
     }
 

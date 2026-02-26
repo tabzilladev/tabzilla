@@ -45,10 +45,6 @@ final class ConfigTests: XCTestCase {
             useTab: docs\\.google\\.com/document/d/\\1
 
           - url: .*
-
-        logging:
-          enabled: true
-          path: ~/Library/Logs/Tabzilla/tabz.log
         """
 
         let config = try parseYAML(yaml)
@@ -74,26 +70,6 @@ final class ConfigTests: XCTestCase {
         // Fourth rule - catch-all
         XCTAssertEqual(config.rules[3].url, ".*")
         XCTAssertNil(config.rules[3].name)
-
-        // Logging
-        XCTAssertNotNil(config.logging)
-        XCTAssertTrue(config.logging!.enabled)
-        XCTAssertEqual(config.logging!.path, "~/Library/Logs/Tabzilla/tabz.log")
-    }
-
-    func testParseConfigWithoutLogging() throws {
-        let yaml = """
-        version: 1
-        defaults:
-          browser: com.google.Chrome
-          window: Default
-        rules:
-          - url: .*
-        """
-
-        let config = try parseYAML(yaml)
-
-        XCTAssertNil(config.logging)
     }
 
     func testParseConfigWithFocusTab() throws {

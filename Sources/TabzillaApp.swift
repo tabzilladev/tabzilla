@@ -1,5 +1,8 @@
 import SwiftUI
 import AppKit
+import os
+
+private let logger = Logger(subsystem: "dev.tabzilla.Tabzilla", category: "app")
 
 @main
 struct TabzillaApp {
@@ -67,12 +70,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Write PID file for CLI commands
         writePIDFile()
 
-        Logger.shared.log("Tabzilla daemon started")
+        logger.info("Tabzilla daemon started")
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         removePIDFile()
-        Logger.shared.log("Tabzilla daemon stopped")
+        logger.info("Tabzilla daemon stopped")
     }
 
     @discardableResult
@@ -82,16 +85,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if changed {
                 self.config = config
 
-                if let logging = config.logging {
-                    Logger.shared.configure(enabled: logging.enabled, path: logging.path)
-                }
-
                 let engine = RuleEngine(config: config)
                 ruleEngine = engine
-                Logger.shared.log("Configuration loaded successfully")
+                logger.info("Configuration loaded successfully")
             }
         } catch {
-            Logger.shared.log("Failed to load configuration: \(error)")
+            logger.error("Failed to load configuration: \(error)")
         }
         return ruleEngine
     }
@@ -121,7 +120,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func handleGetURLEvent(_ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor) {
         guard let urlString = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
               let url = URL(string: urlString) else {
-            Logger.shared.log("Failed to parse URL from Apple Event")
+            logger.error("Failed to parse URL from Apple Event")
             return
         }
 
@@ -136,14 +135,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             timestamp: Date()
         )
 
-        Logger.shared.log("Received URL: \(url), sourceApp: \(sourceApp ?? "unknown"), sourceWindowTitle: \(sourceWindowTitle ?? "unknown")")
+        logger.info("Received URL: \(url, privacy: .private), sourceApp: \(sourceApp ?? "unknown", privacy: .public), sourceWindowTitle: \(sourceWindowTitle ?? "unknown", privacy: .private)")
 
         routeURL(request: request)
     }
 
     @objc private func handleOpenDocumentsEvent(_ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor) {
         guard let listDescriptor = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject)) else {
-            Logger.shared.log("Failed to get document list from Apple Event")
+            logger.error("Failed to get document list from Apple Event")
             return
         }
 
@@ -178,7 +177,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
 
             guard let fileURL = url else {
-                Logger.shared.log("Failed to parse file URL at index \(i)")
+                logger.error("Failed to parse file URL at index \(i)")
                 continue
             }
 
@@ -195,7 +194,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 timestamp: Date()
             )
 
-            Logger.shared.log("Received file: \(fileURL), sourceApp: \(sourceApp ?? "unknown"), sourceWindowTitle: \(sourceWindowTitle ?? "unknown")")
+            logger.info("Received file: \(fileURL, privacy: .private), sourceApp: \(sourceApp ?? "unknown", privacy: .public), sourceWindowTitle: \(sourceWindowTitle ?? "unknown", privacy: .private)")
 
             routeURL(request: request)
         }
@@ -208,20 +207,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func openFileWithDefaultBrowser(_ fileURL: URL) {
         guard let config = config else {
-            Logger.shared.log("No config, falling back to NSWorkspace.open for \(fileURL.lastPathComponent)")
+            logger.info("No config, falling back to NSWorkspace.open for \(fileURL.lastPathComponent, privacy: .private)")
             NSWorkspace.shared.open(fileURL)
             return
         }
 
         let bundleId = config.defaults.browser
         guard let browserURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) else {
-            Logger.shared.log("Default browser \(bundleId) not found, falling back for \(fileURL.lastPathComponent)")
+            logger.error("Default browser \(bundleId) not found, falling back for \(fileURL.lastPathComponent, privacy: .private)")
             NSWorkspace.shared.open(fileURL)
             return
         }
 
         NSWorkspace.shared.open([fileURL], withApplicationAt: browserURL, configuration: NSWorkspace.OpenConfiguration())
-        Logger.shared.log("Delegated \(fileURL.lastPathComponent) to \(bundleId)")
+        logger.info("Delegated \(fileURL.lastPathComponent, privacy: .private) to \(bundleId)")
     }
 
     private func getSourceApp(from event: NSAppleEventDescriptor) -> String? {
@@ -289,18 +288,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func routeURL(request: RouteRequest) {
         guard let engine = reloadConfiguration(), let exec = executor else {
-            Logger.shared.log("Rule engine or executor not initialized")
+            logger.error("Rule engine or executor not initialized")
             openURLInDefaultBrowser(request.url)
             return
         }
 
         let action = engine.route(request: request)
-        Logger.shared.log("Route action: browser=\(action.browser), window=\(action.windowTarget?.name ?? "none")")
+        logger.info("Route action: browser=\(action.browser, privacy: .public), window=\(action.windowTarget?.name ?? "none", privacy: .public)")
 
         do {
             try exec.execute(action: action)
         } catch {
-            Logger.shared.log("Failed to execute action: \(error)")
+            logger.error("Failed to execute action: \(error)")
             openURLInDefaultBrowser(request.url)
         }
     }
@@ -320,7 +319,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             try FileManager.default.createDirectory(atPath: pidDir, withIntermediateDirectories: true)
             try "\(pid)".write(toFile: pidFilePath, atomically: true, encoding: .utf8)
         } catch {
-            Logger.shared.log("Failed to write PID file: \(error)")
+            logger.error("Failed to write PID file: \(error)")
         }
     }
 

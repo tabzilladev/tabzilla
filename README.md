@@ -81,10 +81,6 @@ rules:
   # Catch-all (uses defaults)
   - name: catch-all
     url: .*
-
-logging:
-  enabled: false
-  path: ~/Library/Logs/Tabzilla/tabz.log
 ```
 
 Tabzilla searches for config in these locations (first found wins):
@@ -170,17 +166,15 @@ tabz reload
 tabz quit
 ```
 
-**Enable logging** for debugging:
-
-```yaml
-logging:
-  enabled: true
-  path: ~/Library/Logs/Tabzilla/tabz.log
-```
-
 **View logs**:
+
 ```bash
-tail -f ~/Library/Logs/Tabzilla/tabz.log
+# Stream all Tabzilla logs (--info required; debug/info are suppressed by default)
+log stream --predicate 'subsystem == "dev.tabzilla.Tabzilla"' --info
+# Filter by component
+log stream --predicate 'subsystem == "dev.tabzilla.Tabzilla" AND category == "executor"' --info
+# Search recent history
+log show --predicate 'subsystem == "dev.tabzilla.Tabzilla"' --info --last 1h
 ```
 
 **URLs don't open after reinstall** (Automation permission stale):

@@ -1,5 +1,8 @@
 import Foundation
 import AppKit
+import os
+
+private let logger = Logger(subsystem: "dev.tabzilla.Tabzilla", category: "executor")
 
 /// Executes route actions by controlling browsers
 struct Executor {
@@ -38,12 +41,12 @@ struct Executor {
             try executeChromeAction(action: action, browserBundleId: bundleId)
         } else {
             // Fallback for non-Chrome browsers - just open URL
-            try openURLInBrowser(action.routeUrl, bundleId: bundleId)
+            try openURLInBrowser(action.routeURL, bundleId: bundleId)
         }
     }
 
     private func executeChromeAction(action: RouteAction, browserBundleId: String) throws {
-        let url = action.routeUrl.absoluteString
+        let url = action.routeURL.absoluteString
         let preferredWindow = action.windowTarget?.name ?? ""
 
         // Fetch tab cache once for all tab actions (avoids repeated IPC calls)
@@ -61,7 +64,7 @@ struct Executor {
             ) {
                 switch tabAction.kind {
                 case .focus:
-                    Logger.shared.log("Found matching tab in window '\(tabInfo.windowName)', focusing (focusTab)")
+                    logger.info("Found matching tab in window '\(tabInfo.windowName, privacy: .private)', focusing (focusTab)")
                     chromeController.focusTab(
                         withWindowId: tabInfo.windowId,
                         tabIndex: tabInfo.tabIndex,
@@ -70,7 +73,7 @@ struct Executor {
                     return
 
                 case .use:
-                    Logger.shared.log("Found matching tab in window '\(tabInfo.windowName)', navigating (useTab)")
+                    logger.info("Found matching tab in window '\(tabInfo.windowName, privacy: .private)', navigating (useTab)")
                     chromeController.focusTab(
                         withWindowId: tabInfo.windowId,
                         tabIndex: tabInfo.tabIndex,
@@ -85,7 +88,7 @@ struct Executor {
                     return
 
                 case .follow:
-                    Logger.shared.log("Found matching tab in window '\(tabInfo.windowName)', opening new tab in same window (followTab)")
+                    logger.info("Found matching tab in window '\(tabInfo.windowName, privacy: .private)', opening new tab in same window (followTab)")
                     var error: NSError?
                     let success = chromeController.openURL(
                         url,
@@ -95,20 +98,20 @@ struct Executor {
                     )
                     if !success {
                         let message = error?.localizedDescription ?? "Unknown error"
-                        Logger.shared.log("Failed to open URL in window: \(message)")
+                        logger.error("Failed to open URL in window: \(message)")
                         throw ExecutorError.scriptingError(message)
                     }
                     return
                 }
             }
             // No match for this tab action - continue to next one
-            Logger.shared.log("No matching tab for pattern '\(tabAction.pattern)', trying next action")
+            logger.debug("No matching tab for pattern '\(tabAction.pattern, privacy: .private)', trying next action")
         }
 
         // No tab actions matched - fall through to window targeting or browser default
         guard let windowTarget = action.windowTarget else {
-            Logger.shared.log("Opening URL with browser's default behavior")
-            try openURLInBrowser(action.routeUrl, bundleId: browserBundleId)
+            logger.debug("Opening URL with browser's default behavior")
+            try openURLInBrowser(action.routeURL, bundleId: browserBundleId)
             return
         }
 
@@ -123,11 +126,11 @@ struct Executor {
 
         if !success {
             let message = error?.localizedDescription ?? "Unknown error"
-            Logger.shared.log("Failed to open URL in Chrome: \(message)")
+            logger.error("Failed to open URL in Chrome: \(message)")
             throw ExecutorError.scriptingError(message)
         }
 
-        Logger.shared.log("Opened URL in Chrome window '\(windowTarget.name)'")
+        logger.info("Opened URL in Chrome window '\(windowTarget.name, privacy: .public)'")
     }
 
     private func openURLInBrowser(_ url: URL, bundleId: String) throws {
@@ -140,7 +143,7 @@ struct Executor {
 
         NSWorkspace.shared.open([url], withApplicationAt: browserURL, configuration: configuration) { app, error in
             if let error = error {
-                Logger.shared.log("Failed to open URL: \(error)")
+                logger.error("Failed to open URL: \(error)")
             }
         }
     }
