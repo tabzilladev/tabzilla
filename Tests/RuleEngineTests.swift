@@ -17,7 +17,7 @@ final class RuleEngineTests: XCTestCase {
         let action = engine.testMatch(url: URL(string: "https://github.com/user/repo")!)
 
         XCTAssertEqual(action.matchedRule, "github")
-        XCTAssertEqual(action.windowTarget?.name, "Code")
+        XCTAssertEqual(action.windowTarget, "Code")
         XCTAssertEqual(action.browser, "com.google.Chrome")  // From defaults
     }
 
@@ -33,7 +33,7 @@ final class RuleEngineTests: XCTestCase {
         let action = engine.testMatch(url: URL(string: "https://google.com/search")!)
 
         XCTAssertNil(action.matchedRule)
-        XCTAssertEqual(action.windowTarget?.name, "Default")
+        XCTAssertEqual(action.windowTarget, "Default")
         XCTAssertEqual(action.browser, "com.google.Chrome")
     }
 
@@ -69,7 +69,7 @@ final class RuleEngineTests: XCTestCase {
 
         XCTAssertEqual(action.matchedRule, "slack")
         XCTAssertEqual(action.browser, "com.google.Chrome.beta")
-        XCTAssertEqual(action.windowTarget?.name, "Work")
+        XCTAssertEqual(action.windowTarget, "Work")
     }
 
     func testSourceAppNoMatch() {
@@ -107,7 +107,7 @@ final class RuleEngineTests: XCTestCase {
         )
 
         XCTAssertEqual(action.matchedRule, "work-slack")
-        XCTAssertEqual(action.windowTarget?.name, "Work")
+        XCTAssertEqual(action.windowTarget, "Work")
     }
 
     func testSourceWindowTitleNoMatch() {
@@ -218,12 +218,12 @@ final class RuleEngineTests: XCTestCase {
         // Should match most specific first
         let action1 = engine.testMatch(url: URL(string: "https://github.com/airbnb/repo")!)
         XCTAssertEqual(action1.matchedRule, "specific")
-        XCTAssertEqual(action1.windowTarget?.name, "Airbnb")
+        XCTAssertEqual(action1.windowTarget, "Airbnb")
 
         // Should match second rule
         let action2 = engine.testMatch(url: URL(string: "https://github.com/other/repo")!)
         XCTAssertEqual(action2.matchedRule, "general")
-        XCTAssertEqual(action2.windowTarget?.name, "Code")
+        XCTAssertEqual(action2.windowTarget, "Code")
 
         // Should match catchall
         let action3 = engine.testMatch(url: URL(string: "https://example.com")!)
@@ -243,7 +243,7 @@ final class RuleEngineTests: XCTestCase {
 
         XCTAssertNil(action.matchedRule)
         XCTAssertEqual(action.browser, "com.google.Chrome.beta")
-        XCTAssertEqual(action.windowTarget?.name, "MyDefault")
+        XCTAssertEqual(action.windowTarget, "MyDefault")
     }
 
     // MARK: - Invalid Regex Handling
@@ -383,7 +383,7 @@ final class RuleEngineTests: XCTestCase {
         let action = engine.testMatch(url: URL(string: "chrome://newtab")!)
 
         XCTAssertEqual(action.matchedRule, "chrome-internal")
-        XCTAssertEqual(action.windowTarget?.name, "Settings")
+        XCTAssertEqual(action.windowTarget, "Settings")
     }
 
     func testChromeURLNoMatchDifferentPage() {
@@ -429,7 +429,7 @@ final class RuleEngineTests: XCTestCase {
         let action = engine.testMatch(url: URL(string: "chrome-extension://abcdef1234567890/options.html")!)
 
         XCTAssertEqual(action.matchedRule, "extension")
-        XCTAssertEqual(action.windowTarget?.name, "Extensions")
+        XCTAssertEqual(action.windowTarget, "Extensions")
     }
 
     func testCatchAllMatchesChromeURLs() {

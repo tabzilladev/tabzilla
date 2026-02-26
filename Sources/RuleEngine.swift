@@ -17,12 +17,8 @@ struct RouteAction {
     let matchedRule: String?
     let routeURL: URL
     let browser: String
-    let windowTarget: WindowTarget?
+    let windowTarget: String?
     let tabActions: [TabAction]
-}
-
-struct WindowTarget {
-    let name: String
 }
 
 /// Kind of tab action to perform
@@ -60,7 +56,7 @@ struct RuleEngine {
             matchedRule: nil,
             routeURL: request.url,
             browser: config.defaults.browser,
-            windowTarget: config.defaults.window.map { WindowTarget(name: $0) },
+            windowTarget: config.defaults.window,
             tabActions: []
         )
     }
@@ -97,7 +93,7 @@ struct RuleEngine {
 
         // All conditions matched - build action
         let browser = rule.browser ?? config.defaults.browser
-        let windowTarget = (rule.window ?? config.defaults.window).map { WindowTarget(name: $0) }
+        let windowTarget = rule.window ?? config.defaults.window
 
         // Build tab actions in priority order: focusTab → useTab → followTab
         var tabActions: [TabAction] = []

@@ -292,7 +292,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let action = engine.route(request: request)
-        logger.info("Route action: browser=\(action.browser, privacy: .public), window=\(action.windowTarget?.name ?? "none", privacy: .public)")
+        logger.info("Route action: browser=\(action.browser, privacy: .public), window=\(action.windowTarget ?? "none", privacy: .public)")
 
         do {
             try exec.execute(action: action)

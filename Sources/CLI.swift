@@ -49,7 +49,7 @@ private enum RouteHelper {
         print("\(indent)Matched Rule: \(action.matchedRule ?? "(default)")")
         print("\(indent)Browser:      \(action.browser)")
         if let window = action.windowTarget {
-            print("\(indent)Window:       \(window.name)")
+            print("\(indent)Window:       \(window)")
         }
         if !action.tabActions.isEmpty {
             let tabDescriptions = action.tabActions.map { tab -> String in
@@ -114,7 +114,7 @@ extension CLI {
             // Execute the action
             let executor = Executor()
             do {
-                logger.info("Opening URL: \(url, privacy: .private) -> browser=\(route.action.browser, privacy: .public), window=\(route.action.windowTarget?.name ?? "none", privacy: .public)")
+                logger.info("Opening URL: \(url, privacy: .private) -> browser=\(route.action.browser, privacy: .public), window=\(route.action.windowTarget ?? "none", privacy: .public)")
                 try executor.execute(action: route.action)
                 if verbose {
                     print("Opened successfully.")

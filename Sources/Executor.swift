@@ -47,7 +47,7 @@ struct Executor {
 
     private func executeChromeAction(action: RouteAction, browserBundleId: String) throws {
         let url = action.routeURL.absoluteString
-        let preferredWindow = action.windowTarget?.name ?? ""
+        let preferredWindow = action.windowTarget ?? ""
 
         // Fetch tab cache once for all tab actions (avoids repeated IPC calls)
         let tabCache: [ChromeTabInfo]? = action.tabActions.isEmpty
@@ -119,7 +119,7 @@ struct Executor {
         var error: NSError?
         let success = chromeController.openURL(
             url,
-            inWindow: windowTarget.name,
+            inWindow: windowTarget,
             bundleId: browserBundleId,
             error: &error
         )
@@ -130,7 +130,7 @@ struct Executor {
             throw ExecutorError.scriptingError(message)
         }
 
-        logger.info("Opened URL in Chrome window '\(windowTarget.name, privacy: .public)'")
+        logger.info("Opened URL in Chrome window '\(windowTarget, privacy: .public)'")
     }
 
     private func openURLInBrowser(_ url: URL, bundleId: String) throws {
