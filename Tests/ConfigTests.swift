@@ -1,4 +1,5 @@
 import XCTest
+import Yams
 @testable import Tabzilla
 
 final class ConfigTests: XCTestCase {
@@ -190,6 +191,3 @@ final class ConfigTests: XCTestCase {
         return try decoder.decode(Config.self, from: yaml)
     }
 }
-
-// Import Yams for YAML decoding in tests
-import Yams
