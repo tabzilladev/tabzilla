@@ -113,7 +113,7 @@ ci-watch: ## Watch the most recent CI run until it completes
 
 .PHONY: start
 start: ## Start the installed app (daemon mode)
-	@open "$(INSTALLED_APP)"
+	@open --hide "$(INSTALLED_APP)"
 
 .PHONY: stop
 stop: ## Stop the daemon gracefully
