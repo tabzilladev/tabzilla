@@ -66,29 +66,22 @@ struct RuleEngine {
 
         // Check URL pattern
         if let urlPattern = rule.url {
-            guard let (matches, groups) = matchesRegex(urlPattern, against: request.url.absoluteString) else {
+            guard let groups = matchesRegex(urlPattern, against: request.url.absoluteString) else {
                 return nil
             }
-            if !matches { return nil }
             captureGroups = groups
         }
 
         // Check source app pattern
         if let sourceAppPattern = rule.sourceApp {
             guard let sourceApp = request.sourceApp else { return nil }
-            guard let (matches, _) = matchesRegex(sourceAppPattern, against: sourceApp) else {
-                return nil
-            }
-            if !matches { return nil }
+            guard matchesRegex(sourceAppPattern, against: sourceApp) != nil else { return nil }
         }
 
         // Check source window title pattern
         if let sourceWindowTitlePattern = rule.sourceWindowTitle {
             guard let sourceWindowTitle = request.sourceWindowTitle else { return nil }
-            guard let (matches, _) = matchesRegex(sourceWindowTitlePattern, against: sourceWindowTitle) else {
-                return nil
-            }
-            if !matches { return nil }
+            guard matchesRegex(sourceWindowTitlePattern, against: sourceWindowTitle) != nil else { return nil }
         }
 
         // All conditions matched - build action
@@ -120,13 +113,14 @@ struct RuleEngine {
     }
 
     /// Match a regex pattern against a string
-    /// Returns (matched, captureGroups) or nil if regex is invalid
-    private func matchesRegex(_ pattern: String, against string: String) -> (Bool, [String])? {
+    /// Returns capture groups (groups[0] = full match, groups[1..] = capture groups),
+    /// or nil if no match or regex is invalid.
+    private func matchesRegex(_ pattern: String, against string: String) -> [String]? {
         do {
             let regex = try NSRegularExpression(pattern: pattern, options: [])
             let range = NSRange(string.startIndex..., in: string)
             guard let match = regex.firstMatch(in: string, options: [], range: range) else {
-                return (false, [])
+                return nil
             }
 
             // Extract capture groups
@@ -141,7 +135,7 @@ struct RuleEngine {
                 }
             }
 
-            return (true, groups)
+            return groups
         } catch {
             logger.error("Invalid regex pattern: \(pattern, privacy: .private) - \(error)")
             return nil
