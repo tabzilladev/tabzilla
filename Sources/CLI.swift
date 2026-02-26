@@ -184,7 +184,7 @@ extension CLI {
             let isRunning = pid.map { DaemonPID.isRunning($0) } ?? false
 
             print("Tabzilla Status")
-            print("─────────────")
+            print("───────────────")
             print("")
 
             if isRunning, let pid = pid {
