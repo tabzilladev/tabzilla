@@ -435,20 +435,7 @@ extension CLI {
         )
 
         func run() throws {
-            guard let pid = DaemonPID.get() else {
-                throw ValidationError("Daemon is not running (no PID file found)")
-            }
-
-            guard DaemonPID.isRunning(pid) else {
-                throw ValidationError("Daemon is not running (PID \(pid) not found)")
-            }
-
-            // Send SIGHUP to reload config
-            if kill(pid, SIGHUP) == 0 {
-                print("Sent reload signal to daemon (PID \(pid))")
-            } else {
-                throw ValidationError("Failed to send signal to daemon: \(String(cString: strerror(errno)))")
-            }
+            try DaemonPID.sendSignal(SIGHUP, name: "reload")
         }
     }
 }
@@ -462,20 +449,7 @@ extension CLI {
         )
 
         func run() throws {
-            guard let pid = DaemonPID.get() else {
-                throw ValidationError("Daemon is not running (no PID file found)")
-            }
-
-            guard DaemonPID.isRunning(pid) else {
-                throw ValidationError("Daemon is not running (PID \(pid) not found)")
-            }
-
-            // Send SIGTERM for graceful shutdown
-            if kill(pid, SIGTERM) == 0 {
-                print("Sent quit signal to daemon (PID \(pid))")
-            } else {
-                throw ValidationError("Failed to send signal to daemon: \(String(cString: strerror(errno)))")
-            }
+            try DaemonPID.sendSignal(SIGTERM, name: "quit")
         }
     }
 }
@@ -494,5 +468,19 @@ private enum DaemonPID {
 
     static func isRunning(_ pid: pid_t) -> Bool {
         kill(pid, 0) == 0
+    }
+
+    static func sendSignal(_ sig: Int32, name: String) throws {
+        guard let pid = get() else {
+            throw ValidationError("Daemon is not running (no PID file found)")
+        }
+        guard isRunning(pid) else {
+            throw ValidationError("Daemon is not running (PID \(pid) not found)")
+        }
+        if kill(pid, sig) == 0 {
+            print("Sent \(name) signal to daemon (PID \(pid))")
+        } else {
+            throw ValidationError("Failed to send signal to daemon: \(String(cString: strerror(errno)))")
+        }
     }
 }
