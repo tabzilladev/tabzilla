@@ -109,7 +109,7 @@ tabzilla/
 ├── Sources/
 │   ├── TabzillaApp.swift           # App entry, AppDelegate, URL handling
 │   ├── CLI.swift                   # test/status/reload/quit/open subcommands
-│   ├── Config.swift                # YAML models, ConfigurationManager, FileWatcher, Logger
+│   ├── Config.swift                # YAML models, ConfigurationManager, ConfigFingerprint, Logger
 │   ├── RuleEngine.swift            # RouteRequest → RouteAction matching
 │   ├── Executor.swift              # Browser control via Scripting Bridge
 │   ├── Chrome.h                    # Generated Scripting Bridge header
@@ -174,10 +174,10 @@ Each property access on a Scripting Bridge element array (`[array valueForKey:@"
 
 When a `RouteAction` has multiple tab actions (e.g., `focusTab` + `followTab`), `Executor.executeChromeAction` fetches the tab cache once and passes it to all `findTab` calls. Without caching, each tab action would independently enumerate all Chrome windows and tabs via IPC.
 
-#### 5. FileWatcher atomic save handling
+#### 5. Stat-before-route config freshness
 
-`FileWatcher` (in `Config.swift`) uses `DispatchSource.makeFileSystemObjectSource` to watch the config file. Most text editors save atomically: they write to a temp file and rename it into place. This replaces the inode at the watched path, making the original file descriptor stale.
+Config is reloaded lazily at URL-routing time rather than eagerly via a file watcher. `ConfigFingerprint` (in `Config.swift`) captures the config file's mtime and inode via `stat()`. Both are tracked because atomic saves (write-to-temp + rename) change the inode while mtime can have 1-second granularity.
 
-To handle this, `FileWatcher` watches for `.delete` and `.rename` events in addition to `.write`. On a delete/rename event, the current source is cancelled (closing the stale fd), and the watcher re-opens the path after a short delay to let the new file appear. The callback fires after re-attach to trigger a config reload.
+Before each `routeURL` call, `routeURL` compares the current fingerprint against the stored one. A mismatch triggers `reloadConfiguration()`. This approach has zero idle overhead, handles atomic saves transparently, and guarantees the config is fresh at routing time without any race with debounce timing.
 
 ---

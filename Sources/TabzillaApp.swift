@@ -25,7 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var config: Config?
     private var ruleEngine: RuleEngine?
     private var executor: Executor?
-    private var fileWatcher: FileWatcher?
+
     private var sighupSource: DispatchSourceSignal?
     private var sigtermSource: DispatchSourceSignal?
 
@@ -55,8 +55,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Set up signal handlers for CLI commands
         setupSignalHandlers()
 
-        // Load configuration
-        loadConfiguration()
+        reloadConfiguration()
+        executor = Executor()
 
         // Write PID file for CLI commands
         writePIDFile()
@@ -69,51 +69,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         Logger.shared.log("Tabzilla daemon stopped")
     }
 
-    private func loadConfiguration() {
+    @discardableResult
+    func reloadConfiguration() -> RuleEngine? {
         do {
-            let config = try ConfigurationManager.loadConfig()
-            self.config = config
-            ruleEngine = RuleEngine(config: config)
-            executor = Executor()
+            let (config, changed) = try ConfigurationManager.loadConfig()
+            if changed {
+                self.config = config
 
-            // Configure logger from config
-            if let logging = config.logging {
-                Logger.shared.configure(enabled: logging.enabled, path: logging.path)
+                if let logging = config.logging {
+                    Logger.shared.configure(enabled: logging.enabled, path: logging.path)
+                }
+
+                let engine = RuleEngine(config: config)
+                ruleEngine = engine
+                Logger.shared.log("Configuration loaded successfully")
             }
-
-            // Set up file watching for config reload
-            if let configPath = ConfigurationManager.findConfigPath() {
-                setupFileWatcher(for: configPath)
-            }
-
-            Logger.shared.log("Configuration loaded successfully")
         } catch {
             Logger.shared.log("Failed to load configuration: \(error)")
         }
-    }
-
-    private func setupFileWatcher(for path: String) {
-        fileWatcher = FileWatcher(path: path) { [weak self] in
-            Logger.shared.log("Config file changed, reloading...")
-            self?.reloadConfiguration()
-        }
-    }
-
-    func reloadConfiguration() {
-        do {
-            let config = try ConfigurationManager.loadConfig()
-            self.config = config
-            ruleEngine = RuleEngine(config: config)
-
-            // Reconfigure logger from config
-            if let logging = config.logging {
-                Logger.shared.configure(enabled: logging.enabled, path: logging.path)
-            }
-
-            Logger.shared.log("Configuration reloaded successfully")
-        } catch {
-            Logger.shared.log("Failed to reload configuration: \(error)")
-        }
+        return ruleEngine
     }
 
     private func setupSignalHandlers() {
@@ -308,7 +282,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func routeURL(request: RouteRequest) {
-        guard let engine = ruleEngine, let exec = executor else {
+        guard let engine = reloadConfiguration(), let exec = executor else {
             Logger.shared.log("Rule engine or executor not initialized")
             openURLInDefaultBrowser(request.url)
             return

@@ -30,7 +30,7 @@ private enum RouteHelper {
                 loadedConfig = try ConfigurationManager.loadConfig(from: expandedPath)
                 resolvedConfigPath = expandedPath
             } else {
-                loadedConfig = try ConfigurationManager.loadConfig()
+                loadedConfig = try ConfigurationManager.loadConfig().config
                 resolvedConfigPath = ConfigurationManager.findConfigPath()
             }
         } catch {
@@ -219,7 +219,7 @@ extension CLI {
             // Try to load and validate config
             print("")
             do {
-                let config = try ConfigurationManager.loadConfig()
+                let config = try ConfigurationManager.loadConfig().config
                 print("Config valid: Yes")
                 print("  Version:  \(config.version)")
                 print("  Rules:    \(config.rules.count)")
@@ -355,7 +355,7 @@ extension CLI {
                     let expandedPath = (path as NSString).expandingTildeInPath
                     loadedConfig = try ConfigurationManager.loadConfig(from: expandedPath)
                 } else {
-                    loadedConfig = try ConfigurationManager.loadConfig()
+                    loadedConfig = try ConfigurationManager.loadConfig().config
                 }
                 let loggingState = loadedConfig.logging.map { LoggingState(enabled: $0.enabled, path: $0.path) }
                 configState = ConfigState(

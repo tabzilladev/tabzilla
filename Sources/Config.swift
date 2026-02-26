@@ -81,14 +81,22 @@ enum ConfigurationManager {
         return nil
     }
 
-    /// Load configuration from the first found config file
-    static func loadConfig() throws -> Config {
-        if let configPath = findConfigPath() {
-            return try loadConfig(from: configPath)
+    private static var cachedFingerprint: ConfigFingerprint?
+
+    /// Load configuration from the first found config file.
+    /// Returns the config and whether it differed from the last loaded config.
+    static func loadConfig() throws -> (config: Config, changed: Bool) {
+        let path = findConfigPath()
+        let fingerprint = path.flatMap { ConfigFingerprint.of(path: $0) }
+        let changed = fingerprint != cachedFingerprint
+        cachedFingerprint = fingerprint
+
+        if let configPath = path {
+            return (try loadConfig(from: configPath), changed)
         }
 
         // No config file found - return in-memory defaults
-        return Config()
+        return (Config(), changed)
     }
 
     /// Load configuration from a specific path
@@ -101,89 +109,19 @@ enum ConfigurationManager {
 
 }
 
-// MARK: - File Watcher
+// MARK: - Config Freshness
 
-class FileWatcher {
-    private var source: DispatchSourceFileSystemObject?
-    private var fileDescriptor: Int32
-    private let path: String
-    private let callback: () -> Void
-    private var debounceWork: DispatchWorkItem?
-    private let debounceInterval: TimeInterval = 0.3
-    // Delay before re-attaching after a delete/rename (atomic saves replace the file,
-    // so the new file may not exist yet when the event fires).
-    private let reattachDelay: TimeInterval = 0.5
+struct ConfigFingerprint: Equatable {
+    let path: String
+    let modificationDate: Date
+    let inode: UInt64
 
-    init?(path: String, callback: @escaping () -> Void) {
-        self.path = path
-        self.callback = callback
-
-        let fd = open(path, O_EVTONLY)
-        guard fd >= 0 else { return nil }
-        self.fileDescriptor = fd
-
-        self.source = FileWatcher.makeSource(fd: fd, owner: nil)
-        // Can't pass self into makeSource during init, so set the handler after
-        self.source?.setEventHandler { [weak self] in self?.handleEvent() }
-        self.source?.resume()
-    }
-
-    private static func makeSource(fd: Int32, owner: FileWatcher?) -> DispatchSourceFileSystemObject {
-        let source = DispatchSource.makeFileSystemObjectSource(
-            fileDescriptor: fd,
-            eventMask: [.write, .delete, .rename],
-            queue: .main
-        )
-        source.setCancelHandler { close(fd) }
-        return source
-    }
-
-    private func handleEvent() {
-        let flags = source?.data ?? []
-
-        if flags.contains(.delete) || flags.contains(.rename) {
-            // The file was replaced via an atomic save (write-to-temp + rename).
-            // The current fd is now stale — cancel it and re-open the file at the
-            // same path after a short delay to let the new file appear.
-            source?.cancel()
-            source = nil
-            fileDescriptor = -1
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + reattachDelay) { [weak self] in
-                self?.reattach()
-            }
-            return
-        }
-
-        // Normal write event — debounce and notify
-        debounceWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.callback() }
-        debounceWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + debounceInterval, execute: work)
-    }
-
-    private func reattach() {
-        let fd = open(path, O_EVTONLY)
-        guard fd >= 0 else {
-            // File still not available — try again
-            DispatchQueue.main.asyncAfter(deadline: .now() + reattachDelay) { [weak self] in
-                self?.reattach()
-            }
-            return
-        }
-        fileDescriptor = fd
-        let newSource = FileWatcher.makeSource(fd: fd, owner: self)
-        newSource.setEventHandler { [weak self] in self?.handleEvent() }
-        newSource.resume()
-        source = newSource
-
-        // Notify caller that the file changed (it was replaced)
-        callback()
-    }
-
-    deinit {
-        debounceWork?.cancel()
-        source?.cancel()
+    static func of(path: String) -> ConfigFingerprint? {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: path),
+              let mtime = attrs[.modificationDate] as? Date,
+              let inode = (attrs[.systemFileNumber] as? NSNumber)?.uint64Value
+        else { return nil }
+        return ConfigFingerprint(path: path, modificationDate: mtime, inode: inode)
     }
 }
 
