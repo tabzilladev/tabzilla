@@ -456,9 +456,14 @@ extension CLI {
 
 // MARK: - Shared Helpers
 
-private enum DaemonPID {
+enum DaemonPID {
+    static var pidFile: String {
+        let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        return supportDir.appendingPathComponent("Tabzilla/tabz.pid").path
+    }
+
     static func get() -> pid_t? {
-        let pidPath = TabzillaPaths.pidFile
+        let pidPath = pidFile
         guard let pidString = try? String(contentsOfFile: pidPath, encoding: .utf8),
               let pid = pid_t(pidString.trimmingCharacters(in: .whitespacesAndNewlines)) else {
             return nil

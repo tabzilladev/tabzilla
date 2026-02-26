@@ -118,12 +118,4 @@ struct ConfigFingerprint: Equatable {
     }
 }
 
-// MARK: - Shared Paths
-
-enum TabzillaPaths {
-    static var pidFile: String {
-        let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        return supportDir.appendingPathComponent("Tabzilla/tabz.pid").path
-    }
-}
 

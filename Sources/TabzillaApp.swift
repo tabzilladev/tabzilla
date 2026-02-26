@@ -310,7 +310,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func writePIDFile() {
         let pid = ProcessInfo.processInfo.processIdentifier
-        let pidFilePath = TabzillaPaths.pidFile
+        let pidFilePath = DaemonPID.pidFile
         let pidDir = (pidFilePath as NSString).deletingLastPathComponent
 
         do {
@@ -322,6 +322,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func removePIDFile() {
-        try? FileManager.default.removeItem(atPath: TabzillaPaths.pidFile)
+        try? FileManager.default.removeItem(atPath: DaemonPID.pidFile)
     }
 }
