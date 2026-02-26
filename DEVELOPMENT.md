@@ -39,19 +39,6 @@ make test-url URL=https://example.com CONFIG=path/to/config.yaml
 
 ## CI/CD
 
-### Version Management
-
-Version is derived from git tags (`v1.0.0`). The `set-version` script patches all three locations where the version is tracked:
-
-- `Sources/CLI.swift` — CLI `--version` output
-- `Tabzilla.xcodeproj/project.pbxproj` — `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION`
-- `Sources/Resources/Info.plist` — inherits from Xcode build settings (no manual edit needed)
-
-```bash
-make version                  # Show current version
-make set-version V=1.2.0     # Set version everywhere
-```
-
 ### Continuous Integration
 
 CI runs on GitHub Actions (`macos-14` runner). Currently manual-trigger only:
@@ -66,6 +53,19 @@ Or trigger from the GitHub Actions tab: select "CI" workflow → "Run workflow".
 CI runs `make test` (unit tests via SPM) and `make build` (full Xcode build verification).
 
 ### Releasing
+
+#### Version Management
+
+Version is derived from git tags (`v1.0.0`). The `set-version` script patches all three locations where the version is tracked:
+
+- `Sources/CLI.swift` — CLI `--version` output
+- `Tabzilla.xcodeproj/project.pbxproj` — `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION`
+- `Sources/Resources/Info.plist` — inherits from Xcode build settings (no manual edit needed)
+
+```bash
+make version                 # Show current version
+make set-version V=1.1.0     # Set version everywhere
+```
 
 Releases are triggered by pushing a version tag:
 
@@ -87,9 +87,9 @@ The release workflow automatically:
 After making changes:
 
 ```bash
-make install                           # Rebuild and install
-make kill && make run                  # Restart daemon
-open https://example.com               # Test via default browser
+make install                              # Rebuild and install
+make stop && make run                     # Restart daemon
+open https://example.com                  # Test via default browser
 tail -f ~/Library/Logs/Tabzilla/tabz.log  # Watch logs
 ```
 
@@ -101,6 +101,7 @@ tabzilla/
 ├── Tabzilla.xcodeproj/             # Xcode project for app bundle
 ├── Makefile                        # Build/test/install workflow
 ├── scripts/
+│   ├── release.sh                 # Release packaging script
 │   └── set-version.sh             # Version sync script
 ├── .github/workflows/
 │   ├── ci.yml                     # CI workflow (manual trigger)
@@ -122,7 +123,8 @@ tabzilla/
 │   ├── RuleEngineTests.swift       # Rule matching tests
 │   └── ConfigTests.swift           # YAML parsing tests
 └── test/fixtures/
-    └── example.yaml                # Test config
+    ├── example.yaml                # Test config
+    └── test-features.yaml          # Feature-specific test config
 ```
 
 ## Architecture
