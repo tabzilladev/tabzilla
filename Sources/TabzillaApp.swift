@@ -131,8 +131,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let request = RouteRequest(
             url: url,
             sourceApp: sourceApp,
-            sourceWindowTitle: sourceWindowTitle,
-            timestamp: Date()
+            sourceWindowTitle: sourceWindowTitle
         )
 
         logger.info("Received URL: \(url, privacy: .private), sourceApp: \(sourceApp ?? "unknown", privacy: .public), sourceWindowTitle: \(sourceWindowTitle ?? "unknown", privacy: .private)")
@@ -190,8 +189,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let request = RouteRequest(
                 url: fileURL,
                 sourceApp: sourceApp,
-                sourceWindowTitle: sourceWindowTitle,
-                timestamp: Date()
+                sourceWindowTitle: sourceWindowTitle
             )
 
             logger.info("Received file: \(fileURL, privacy: .private), sourceApp: \(sourceApp ?? "unknown", privacy: .public), sourceWindowTitle: \(sourceWindowTitle ?? "unknown", privacy: .private)")

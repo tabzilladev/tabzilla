@@ -10,7 +10,6 @@ struct RouteRequest {
     let url: URL
     let sourceApp: String?
     let sourceWindowTitle: String?
-    let timestamp: Date
 }
 
 /// Output from the rule engine
@@ -178,8 +177,7 @@ extension RuleEngine {
         let request = RouteRequest(
             url: url,
             sourceApp: sourceApp,
-            sourceWindowTitle: sourceWindowTitle,
-            timestamp: Date()
+            sourceWindowTitle: sourceWindowTitle
         )
         return route(request: request)
     }
