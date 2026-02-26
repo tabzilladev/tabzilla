@@ -342,10 +342,11 @@ extension CLI {
 
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            if let jsonData = try? encoder.encode(output),
-               let jsonString = String(data: jsonData, encoding: .utf8) {
-                print(jsonString)
+            let jsonData = try encoder.encode(output)
+            guard let jsonString = String(data: jsonData, encoding: .utf8) else {
+                throw ValidationError("Failed to encode output as UTF-8")
             }
+            print(jsonString)
         }
 
         /// Extract unique browser bundle IDs from config
