@@ -51,15 +51,6 @@ NS_ASSUME_NONNULL_BEGIN
 /// @return Array of ChromeTabInfo objects, or nil if browser unavailable
 - (nullable NSArray<ChromeTabInfo *> *)getAllTabsForBundleId:(NSString *)bundleId;
 
-/// Find a tab matching a regex pattern
-/// @param pattern Regex pattern to match against tab URLs
-/// @param preferredWindow Preferred window name (optional)
-/// @param bundleId The browser bundle ID
-/// @return Tab info if found, nil otherwise
-- (nullable ChromeTabInfo *)findTabMatchingPattern:(NSString *)pattern
-                                   preferredWindow:(nullable NSString *)preferredWindow
-                                          bundleId:(NSString *)bundleId;
-
 /// Find a tab matching a regex pattern using a pre-fetched tab cache
 /// @param pattern Regex pattern to match against tab URLs
 /// @param preferredWindow Preferred window name (optional)

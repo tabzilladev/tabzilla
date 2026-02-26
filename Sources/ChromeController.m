@@ -207,16 +207,6 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
 
 - (nullable ChromeTabInfo *)findTabMatchingPattern:(NSString *)pattern
                                    preferredWindow:(nullable NSString *)preferredWindow
-                                          bundleId:(NSString *)bundleId {
-    // Delegate to cache-aware method with no cache (will fetch fresh)
-    return [self findTabMatchingPattern:pattern
-                        preferredWindow:preferredWindow
-                               bundleId:bundleId
-                           fromTabCache:nil];
-}
-
-- (nullable ChromeTabInfo *)findTabMatchingPattern:(NSString *)pattern
-                                   preferredWindow:(nullable NSString *)preferredWindow
                                           bundleId:(NSString *)bundleId
                                       fromTabCache:(nullable NSArray<ChromeTabInfo *> *)cachedTabs {
 
