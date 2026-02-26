@@ -6,11 +6,13 @@ struct TabzillaApp {
     static func main() {
         // Check if running with CLI arguments
         let args = CommandLine.arguments
+        // The `-NS` and `-Apple` prefix filter is necessary because macOS injects system flags
+        // (like `-NSDocumentRevisionsDebugMode`, `-ApplePersistenceIgnoreState`) when launching
+        // the app bundle.
         if args.count > 1 && !args[1].starts(with: "-NS") && !args[1].starts(with: "-Apple") {
-            // CLI mode
             CLI.main()
         } else {
-            // GUI/Daemon mode
+            // Daemon mode
             let app = NSApplication.shared
             let delegate = AppDelegate()
             app.delegate = delegate
@@ -243,7 +245,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func getSourceApp(from event: NSAppleEventDescriptor) -> String? {
-        // Method 1: Try keyOriginalAddressAttr (direct bundle ID)
+        // Direct path: coerce the original sender address to a bundle ID.
         if let sourceDescriptor = event.attributeDescriptor(forKeyword: AEKeyword(keyOriginalAddressAttr)) {
             if let bundleIDDescriptor = sourceDescriptor.coerce(toDescriptorType: typeApplicationBundleID) {
                 if let bundleId = bundleIDDescriptor.stringValue {
@@ -252,7 +254,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
-        // Method 2: Try keySenderPIDAttr and look up bundle ID from PID
+        // Fallback for apps that don't include the bundle ID attribute: read the
+        // sender's PID from the event and resolve the bundle ID via NSRunningApplication.
         if let pidDescriptor = event.attributeDescriptor(forKeyword: AEKeyword(keySenderPIDAttr)) {
             let pid = pidDescriptor.int32Value
             if pid > 0 {

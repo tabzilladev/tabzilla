@@ -123,7 +123,7 @@ Rules are evaluated in order; first match wins.
 
 3. **Rule Matching**: The URL and source info are matched against rules in order. First match wins.
 
-4. **Window Targeting**: Chrome windows are identified by their **given name** (Menu Bar → Window → Name Window), which is distinct from the window title. If no matching window exists, one is created.
+4. **Window Targeting**: Chrome windows are identified by their **given name** (Menu Bar → Window → Name Window), which is distinct from the window title (derived from the active tab's page title; changes constantly). If no matching window exists, one is created.
 
 5. **Tab Handling**: If `useTab`, `focusTab`, or `followTab` is specified, existing tabs are searched. Depending on the action, Tabzilla will focus the tab, navigate it, or open a new tab in the same window.
 
