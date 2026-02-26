@@ -253,23 +253,8 @@ private struct BrowserState: Encodable {
     let supportsScriptingBridge: Bool
     let running: Bool?
     let windowCount: Int?
-    let windows: [WindowState]?
+    let windows: [WindowSnapshot]?
     let error: String?
-}
-
-private struct WindowState: Encodable {
-    let id: String
-    let givenName: String
-    let tabCount: Int
-    let tabs: [TabState]
-}
-
-private struct TabState: Encodable {
-    let id: String
-    let index: Int
-    let url: String
-    let title: String
-    let active: Bool
 }
 
 // MARK: - Dump Command
@@ -354,7 +339,7 @@ extension CLI {
 
                 if isChromeBasedBrowser, isInstalled {
                     if let rawWindows = chromeController.getAllWindows(forBundleId: bundleId) {
-                        let windows = convertWindows(rawWindows as? [NSDictionary] ?? [])
+                        let windows = BrowserSnapshot.from(rawWindows as [NSDictionary]).windows
                         return BrowserState(
                             bundleId: bundleId,
                             installed: isInstalled,
@@ -378,23 +363,6 @@ extension CLI {
             return NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == bundleId }
         }
 
-        private func convertWindows(_ rawWindows: [NSDictionary]) -> [WindowState] {
-            return rawWindows.compactMap { w in
-                guard let id = w["id"] as? String,
-                      let givenName = w["givenName"] as? String,
-                      let tabCount = w["tabCount"] as? Int,
-                      let rawTabs = w["tabs"] as? [[String: Any]] else { return nil }
-                let tabs = rawTabs.compactMap { t -> TabState? in
-                    guard let tabId = t["id"] as? String,
-                          let index = t["index"] as? Int,
-                          let url = t["url"] as? String,
-                          let title = t["title"] as? String,
-                          let active = t["active"] as? Bool else { return nil }
-                    return TabState(id: tabId, index: index, url: url, title: title, active: active)
-                }
-                return WindowState(id: id, givenName: givenName, tabCount: tabCount, tabs: tabs)
-            }
-        }
     }
 }
 

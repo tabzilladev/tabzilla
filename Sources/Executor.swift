@@ -25,6 +25,7 @@ struct Executor {
     }
 
     private let chromeController = ChromeController.shared()
+    private let resolver = RouteResolver()
 
     func execute(action: RouteAction) throws {
         let bundleId = action.browser
@@ -37,100 +38,76 @@ struct Executor {
         // Check if this is a Chrome-based browser (supports window targeting via Scripting Bridge)
         let isChromeBasedBrowser = bundleId.hasPrefix("com.google.Chrome")
 
-        if isChromeBasedBrowser {
-            try executeChromeAction(action: action, browserBundleId: bundleId)
-        } else {
-            // Fallback for non-Chrome browsers - just open URL
-            try openURLInBrowser(action.routeURL, bundleId: bundleId)
-        }
+        // Build snapshot (Chrome-based browsers only)
+        let snapshot: BrowserSnapshot? = isChromeBasedBrowser
+            ? BrowserSnapshot.from(chromeController.getAllWindows(forBundleId: bundleId) as? [NSDictionary] ?? [])
+            : nil
+
+        // Resolve (pure)
+        let route = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: isChromeBasedBrowser)
+
+        // Execute (side effects only)
+        try executeRoute(route)
     }
 
-    private func executeChromeAction(action: RouteAction, browserBundleId: String) throws {
-        let url = action.routeURL.absoluteString
-        let preferredWindow = action.windowTarget ?? ""
+    private func executeRoute(_ route: ResolvedRoute) throws {
+        switch route {
+        case .focusTab(let bundleId, let windowId, let tabIndex, let matchedRule):
+            logger.info("Focusing tab (focusTab) matchedRule=\(matchedRule ?? "none", privacy: .public)")
+            chromeController.focusTab(
+                withWindowId: windowId,
+                tabIndex: tabIndex,
+                bundleId: bundleId
+            )
 
-        // Fetch tab cache once for all tab actions (avoids repeated IPC calls)
-        let tabCache: [ChromeTabInfo]? = action.tabActions.isEmpty
-            ? nil
-            : chromeController.getAllTabs(forBundleId: browserBundleId)
+        case .navigateTab(let bundleId, let windowId, let tabId, let tabIndex, let url, let matchedRule):
+            logger.info("Navigating tab (useTab) matchedRule=\(matchedRule ?? "none", privacy: .public)")
+            chromeController.focusTab(
+                withWindowId: windowId,
+                tabIndex: tabIndex,
+                bundleId: bundleId
+            )
+            chromeController.navigateTab(
+                withWindowId: windowId,
+                tabId: tabId,
+                toURL: url,
+                bundleId: bundleId
+            )
 
-        // Try each tab action in priority order (focusTab → useTab → followTab)
-        for tabAction in action.tabActions {
-            if let tabInfo = chromeController.findTab(
-                matchingPattern: tabAction.pattern,
-                preferredWindow: preferredWindow,
-                bundleId: browserBundleId,
-                fromTabCache: tabCache
-            ) {
-                switch tabAction.kind {
-                case .focus:
-                    logger.info("Found matching tab in window '\(tabInfo.windowName, privacy: .private)', focusing (focusTab)")
-                    chromeController.focusTab(
-                        withWindowId: tabInfo.windowId,
-                        tabIndex: tabInfo.tabIndex,
-                        bundleId: browserBundleId
-                    )
-                    return
-
-                case .use:
-                    logger.info("Found matching tab in window '\(tabInfo.windowName, privacy: .private)', navigating (useTab)")
-                    chromeController.focusTab(
-                        withWindowId: tabInfo.windowId,
-                        tabIndex: tabInfo.tabIndex,
-                        bundleId: browserBundleId
-                    )
-                    chromeController.navigateTab(
-                        withWindowId: tabInfo.windowId,
-                        tabId: tabInfo.tabId,
-                        toURL: url,
-                        bundleId: browserBundleId
-                    )
-                    return
-
-                case .follow:
-                    logger.info("Found matching tab in window '\(tabInfo.windowName, privacy: .private)', opening new tab in same window (followTab)")
-                    var error: NSError?
-                    let success = chromeController.openURL(
-                        url,
-                        inWindowWithId: tabInfo.windowId,
-                        bundleId: browserBundleId,
-                        error: &error
-                    )
-                    if !success {
-                        let message = error?.localizedDescription ?? "Unknown error"
-                        logger.error("Failed to open URL in window: \(message)")
-                        throw ExecutorError.scriptingError(message)
-                    }
-                    return
-                }
+        case .openInWindow(let bundleId, let windowId, let url, let matchedRule):
+            logger.info("Opening URL in window (followTab/window) matchedRule=\(matchedRule ?? "none", privacy: .public)")
+            var error: NSError?
+            let success = chromeController.openURL(
+                url,
+                inWindowWithId: windowId,
+                bundleId: bundleId,
+                error: &error
+            )
+            if !success {
+                let message = error?.localizedDescription ?? "Unknown error"
+                logger.error("Failed to open URL in window: \(message)")
+                throw ExecutorError.scriptingError(message)
             }
-            // No match for this tab action - continue to next one
-            logger.debug("No matching tab for pattern '\(tabAction.pattern, privacy: .private)', trying next action")
+
+        case .createWindow(let bundleId, let windowName, let url, let matchedRule):
+            logger.info("Creating window '\(windowName, privacy: .public)' matchedRule=\(matchedRule ?? "none", privacy: .public)")
+            var error: NSError?
+            let success = chromeController.openURL(
+                url,
+                inWindow: windowName,
+                bundleId: bundleId,
+                error: &error
+            )
+            if !success {
+                let message = error?.localizedDescription ?? "Unknown error"
+                logger.error("Failed to create window: \(message)")
+                throw ExecutorError.scriptingError(message)
+            }
+
+        case .openWithWorkspace(let bundleId, let url, let matchedRule):
+            logger.info("Opening URL with workspace matchedRule=\(matchedRule ?? "none", privacy: .public)")
+            try openURLInBrowser(url, bundleId: bundleId)
         }
-
-        // No tab actions matched - fall through to window targeting or browser default
-        guard let windowTarget = action.windowTarget else {
-            logger.debug("Opening URL with browser's default behavior")
-            try openURLInBrowser(action.routeURL, bundleId: browserBundleId)
-            return
-        }
-
-        // Open in target window
-        var error: NSError?
-        let success = chromeController.openURL(
-            url,
-            inWindow: windowTarget,
-            bundleId: browserBundleId,
-            error: &error
-        )
-
-        if !success {
-            let message = error?.localizedDescription ?? "Unknown error"
-            logger.error("Failed to open URL in Chrome: \(message)")
-            throw ExecutorError.scriptingError(message)
-        }
-
-        logger.info("Opened URL in Chrome window '\(windowTarget, privacy: .public)'")
     }
 
     private func openURLInBrowser(_ url: URL, bundleId: String) throws {

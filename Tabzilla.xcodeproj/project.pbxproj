@@ -13,6 +13,8 @@
 		1100000000000004 /* Executor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200000000000004 /* Executor.swift */; };
 		1100000000000005 /* CLI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200000000000005 /* CLI.swift */; };
 		1100000000000006 /* DefaultConfig.yaml in Resources */ = {isa = PBXBuildFile; fileRef = 2200000000000006 /* DefaultConfig.yaml */; };
+		1100000000000008 /* BrowserSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200000000000010 /* BrowserSnapshot.swift */; };
+		1100000000000009 /* RouteResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200000000000011 /* RouteResolver.swift */; };
 		1100000000000007 /* ChromeController.m in Sources */ = {isa = PBXBuildFile; fileRef = 2200000000000009 /* ChromeController.m */; };
 		1100000000000010 /* ArgumentParser in Frameworks */ = {isa = PBXBuildFile; productRef = 4400000000000001 /* ArgumentParser */; };
 		1100000000000011 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = 4400000000000002 /* Yams */; };
@@ -24,6 +26,8 @@
 		2200000000000003 /* RuleEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuleEngine.swift; sourceTree = "<group>"; };
 		2200000000000004 /* Executor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Executor.swift; sourceTree = "<group>"; };
 		2200000000000005 /* CLI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLI.swift; sourceTree = "<group>"; };
+		2200000000000010 /* BrowserSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserSnapshot.swift; sourceTree = "<group>"; };
+		2200000000000011 /* RouteResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteResolver.swift; sourceTree = "<group>"; };
 		2200000000000006 /* DefaultConfig.yaml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = DefaultConfig.yaml; sourceTree = "<group>"; };
 		2200000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		2200000000000008 /* Tabzilla.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Tabzilla.entitlements; sourceTree = "<group>"; };
@@ -63,6 +67,8 @@
 				2200000000000003 /* RuleEngine.swift */,
 				2200000000000004 /* Executor.swift */,
 				2200000000000005 /* CLI.swift */,
+				2200000000000010 /* BrowserSnapshot.swift */,
+				2200000000000011 /* RouteResolver.swift */,
 				220000000000000A /* ChromeController.h */,
 				2200000000000009 /* ChromeController.m */,
 				220000000000000B /* Chrome.h */,
@@ -172,6 +178,8 @@
 				1100000000000003 /* RuleEngine.swift in Sources */,
 				1100000000000004 /* Executor.swift in Sources */,
 				1100000000000005 /* CLI.swift in Sources */,
+				1100000000000008 /* BrowserSnapshot.swift in Sources */,
+				1100000000000009 /* RouteResolver.swift in Sources */,
 				1100000000000007 /* ChromeController.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
