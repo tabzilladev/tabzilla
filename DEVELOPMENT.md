@@ -56,31 +56,39 @@ CI runs `make test` (unit tests via SPM) and `make build` (full Xcode build veri
 
 #### Version Management
 
-Version is derived from git tags (`v1.0.0`). The `set-version` script patches all three locations where the version is tracked:
-
+Version is tracked in two files (plus Info.plist which inherits from Xcode build settings):
 - `Sources/CLI.swift` — CLI `--version` output
 - `Tabzilla.xcodeproj/project.pbxproj` — `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION`
-- `Sources/Resources/Info.plist` — inherits from Xcode build settings (no manual edit needed)
 
 ```bash
 make version                 # Show current version
-make set-version V=1.1.0     # Set version everywhere
+make set-version V=1.1.0     # Set version everywhere (without committing)
 ```
 
-Releases are triggered by pushing a version tag:
+#### Creating a Release
 
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+make release V=1.1.0 DRY_RUN=1   # Preview what will happen
+make release V=1.1.0              # Execute the release, watch CI
+make release V=1.1.0 FORCE=1     # Re-release (delete and recreate tag)
+make release V=1.1.0 NOWATCH=1   # Release without waiting for CI
 ```
 
-The release workflow automatically:
+This validates preconditions, patches version numbers, commits the bump,
+creates git tag `v1.1.0`, pushes it to origin, and watches CI until completion.
+The tag push triggers the CI release workflow which:
 1. Patches version numbers from the tag
 2. Runs tests
 3. Builds the release app bundle
-4. Packages `Tabzilla.app` into a zip with SHA256 checksum
+4. Packages `Tabzilla.app` into `Tabzilla-1.1.0-macos.zip` with SHA256
 5. Creates a GitHub Release with the zip attached
 6. Updates the Homebrew Cask in `tabzilladev/homebrew-tap`
+
+Preconditions (checked before any changes are made):
+- Working tree is clean (no uncommitted or untracked files)
+- On the `main` branch
+- Version is valid semver (X.Y.Z) and differs from current
+- Tag does not already exist (unless `FORCE=1`)
 
 ## Development Workflow
 

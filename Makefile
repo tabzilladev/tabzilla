@@ -92,8 +92,9 @@ set-version: ## Set version across all source files; usage: make set-version V=X
 	@scripts/set-version.sh "$(V)"
 
 .PHONY: release
-release: ## Tag and push current version to trigger CI release; use FORCE=1 to re-tag an existing version
-	@scripts/release.sh $(if $(filter 1,$(FORCE)),--force,)
+release: ## Bump, tag, push, and watch CI; usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]
+	@test -n "$(V)" || (echo "Usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]" && exit 1)
+	@scripts/release.sh "$(V)" $(if $(filter 1,$(DRY_RUN)),--dry-run,) $(if $(filter 1,$(FORCE)),--force,) $(if $(filter 1,$(NOWATCH)),--no-watch,)
 
 .PHONY: release-status
 release-status: ## Show the latest GitHub release
