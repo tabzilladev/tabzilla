@@ -127,12 +127,9 @@ tabzilla/
 │       ├── Info.plist              # URL schemes, document types
 │       ├── Tabzilla.entitlements   # Apple Events permission
 │       └── DefaultConfig.yaml
-├── Tests/
-│   ├── RuleEngineTests.swift       # Rule matching tests
-│   └── ConfigTests.swift           # YAML parsing tests
-└── test/fixtures/
-    ├── example.yaml                # Test config
-    └── test-features.yaml          # Feature-specific test config
+└── Tests/
+    ├── RuleEngineTests.swift       # Rule matching tests
+    └── ConfigTests.swift           # YAML parsing tests
 ```
 
 ## Design
