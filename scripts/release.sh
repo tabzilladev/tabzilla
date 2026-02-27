@@ -15,7 +15,7 @@ done
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CLI_SWIFT="$REPO_ROOT/Sources/CLI.swift"
 
-VERSION="$(grep -o 'version: "[^"]*"' "$CLI_SWIFT" | grep -o '"[^"]*"' | tr -d '"')"
+VERSION="$(grep -o 'appVersion = "[^"]*"' "$CLI_SWIFT" | grep -o '"[^"]*"' | tr -d '"')"
 if [[ -z "$VERSION" ]]; then
   echo "Error: could not read version from $CLI_SWIFT" >&2
   exit 1

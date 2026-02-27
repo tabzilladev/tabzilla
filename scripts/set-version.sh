@@ -28,9 +28,9 @@ PBXPROJ="$REPO_ROOT/Tabzilla.xcodeproj/project.pbxproj"
 
 echo "Setting version to $VERSION..."
 
-# Patch CLI.swift: version: "X.Y.Z"
-sed -i '' "s/version: \"[^\"]*\"/version: \"$VERSION\"/" "$CLI_SWIFT"
-echo "  CLI.swift: version = $VERSION"
+# Patch CLI.swift: let appVersion = "X.Y.Z"
+sed -i '' "s/let appVersion = \"[^\"]*\"/let appVersion = \"$VERSION\"/" "$CLI_SWIFT"
+echo "  CLI.swift: appVersion = $VERSION"
 
 # Patch CURRENT_PROJECT_VERSION in project.pbxproj
 sed -i '' "s/CURRENT_PROJECT_VERSION = [^;]*/CURRENT_PROJECT_VERSION = $BUILD_NUMBER/g" "$PBXPROJ"

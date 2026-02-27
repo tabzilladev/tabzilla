@@ -4,12 +4,13 @@ import AppKit
 import os
 
 private let logger = Logger(subsystem: "dev.tabzilla.Tabzilla", category: "cli")
+let appVersion = "0.1.0"
 
 struct CLI: ParsableCommand {
     static var configuration = CommandConfiguration(
         commandName: "tabz",
         abstract: "URL routing daemon for macOS",
-        version: "0.1.0",
+        version: appVersion,
         subcommands: [Open.self, Test.self, Status.self, Dump.self, Reload.self, Stop.self],
         defaultSubcommand: nil
     )
@@ -186,9 +187,16 @@ extension CLI {
             print("Tabzilla Status")
             print("───────────────")
             print("")
+            print("Version: \(appVersion)")
 
             if isRunning, let pid = pid {
-                print("Daemon:  Running (PID \(pid))")
+                let daemonVersion = DaemonPID.getVersion()
+                if let dv = daemonVersion {
+                    let mismatch = dv != appVersion ? " (restart to update)" : ""
+                    print("Daemon:  Running (PID \(pid)) [\(dv)]\(mismatch)")
+                } else {
+                    print("Daemon:  Running (PID \(pid))")
+                }
             } else {
                 print("Daemon:  Not running")
             }
@@ -229,6 +237,7 @@ extension CLI {
 
 private struct DumpOutput: Encodable {
     let timestamp: String
+    let version: String
     let daemon: DaemonState
     let config: ConfigInfo
     let browsers: [BrowserState]
@@ -237,6 +246,7 @@ private struct DumpOutput: Encodable {
 private struct DaemonState: Encodable {
     let running: Bool
     let pid: pid_t?
+    let version: String?
 }
 
 private struct ConfigInfo: Encodable {
@@ -272,7 +282,8 @@ extension CLI {
             // Daemon state
             let pid = DaemonPID.get()
             let isRunning = pid.map { DaemonPID.isRunning($0) } ?? false
-            let daemonState = DaemonState(running: isRunning, pid: isRunning ? pid : nil)
+            let daemonVersion = isRunning ? DaemonPID.getVersion() : nil
+            let daemonState = DaemonState(running: isRunning, pid: isRunning ? pid : nil, version: daemonVersion)
 
             // Config state
             let configPath = config.map { ($0 as NSString).expandingTildeInPath } ?? ConfigurationManager.findConfigPath()
@@ -302,6 +313,7 @@ extension CLI {
 
             let output = DumpOutput(
                 timestamp: ISO8601DateFormatter().string(from: Date()),
+                version: appVersion,
                 daemon: daemonState,
                 config: configInfo,
                 browsers: browsers
@@ -413,6 +425,15 @@ enum DaemonPID {
 
     static func isRunning(_ pid: pid_t) -> Bool {
         kill(pid, 0) == 0
+    }
+
+    static func getVersion() -> String? {
+        guard let pid = get(), isRunning(pid) else { return nil }
+        guard let app = NSRunningApplication(processIdentifier: pid),
+              let bundleURL = app.bundleURL else { return nil }
+        let plistURL = bundleURL.appendingPathComponent("Contents/Info.plist")
+        guard let plist = NSDictionary(contentsOf: plistURL) else { return nil }
+        return plist["CFBundleShortVersionString"] as? String
     }
 
     static func sendSignal(_ sig: Int32, name: String) throws {

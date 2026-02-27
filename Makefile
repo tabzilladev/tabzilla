@@ -84,7 +84,7 @@ register: ## Re-register with Launch Services (useful after manual copy)
 
 .PHONY: version
 version: ## Show current version
-	@grep -o 'version: "[^"]*"' Sources/CLI.swift | grep -o '"[^"]*"' | tr -d '"'
+	@grep -o 'appVersion = "[^"]*"' Sources/CLI.swift | grep -o '"[^"]*"' | tr -d '"'
 
 .PHONY: set-version
 set-version: ## Set version across all source files; usage: make set-version V=X.Y.Z
