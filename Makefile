@@ -10,7 +10,7 @@ XCODE_DEBUG_APP = $(shell find "$(DERIVED_DATA)" -path "*/Tabzilla-*/Build/Produ
 REPO_URL = $(shell gh repo view --json url -q .url)
 
 # Default target
-all: build
+all: build ## Runs default target: build
 
 .PHONY: help
 help: ## Show this help
@@ -19,21 +19,24 @@ help: ## Show this help
 ##@ Build
 
 .PHONY: build
-build: ## Build release app bundle with Xcode
+build: ## Build universal release app bundle (arm64 + x86_64)
 	@echo "Building $(APP_NAME)..."
 	@xcodebuild -project $(APP_NAME).xcodeproj \
 		-scheme $(APP_NAME) \
 		-configuration Release \
+		-destination 'generic/platform=macOS' \
+		ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
 		-quiet
 	@echo "Build complete"
 
 # Build debug app bundle (used as prerequisite by test-url)
 .PHONY: debug
-debug:
+debug: ## Build debug app bundle for current arch only (see: uname -m)
 	@echo "Building $(APP_NAME) (debug)..."
 	@xcodebuild -project $(APP_NAME).xcodeproj \
 		-scheme $(APP_NAME) \
 		-configuration Debug \
+		-destination 'platform=macOS,arch=$(shell uname -m)' \
 		-quiet
 	@echo "Debug build complete"
 
@@ -146,3 +149,21 @@ dump: ## Dump full state as JSON (for tools/agents)
 .PHONY: reload
 reload: ## Reload configuration
 	@"$(INSTALLED_APP)/Contents/MacOS/$(APP_NAME)" reload
+
+# LOG_LEVEL: info (default) or debug
+# LAST: time duration, e.g. 1h, 30m (default: 1d, log show only)
+LOG_LEVEL ?= info
+LAST ?= 1d
+
+.PHONY: logs
+logs: ## Show recent logs; LOG_LEVEL=info|debug, LAST=1d
+	$(eval _LOG_FLAGS := $(if $(filter debug,$(LOG_LEVEL)),--info --debug,--info))
+	$(eval _LOG_CMD := log show --predicate 'subsystem == "$(BUNDLE_ID)"' $(_LOG_FLAGS) --last $(LAST))
+	@echo "$(_LOG_CMD)" >&2
+	@$(_LOG_CMD)
+
+.PHONY: logs-follow
+logs-follow: ## Stream logs; LOG_LEVEL=info|debug
+	$(eval _LOG_CMD := log stream --predicate 'subsystem == "$(BUNDLE_ID)"' --level $(LOG_LEVEL))
+	@echo "$(_LOG_CMD)" >&2
+	@$(_LOG_CMD)
