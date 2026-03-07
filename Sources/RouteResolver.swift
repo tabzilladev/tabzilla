@@ -8,7 +8,14 @@ enum ResolvedRoute {
     case focusTab(bundleId: String, windowId: String, tabIndex: Int, matchedRule: String?)
 
     /// Focus an existing tab and navigate it to a new URL.
-    case navigateTab(bundleId: String, windowId: String, tabId: String, tabIndex: Int, url: String, matchedRule: String?)
+    case navigateTab(
+        bundleId: String,
+        windowId: String,
+        tabId: String,
+        tabIndex: Int,
+        url: String,
+        matchedRule: String?
+    )
 
     /// Open URL as a new tab inside an already-known window.
     case openInWindow(bundleId: String, windowId: String, url: String, matchedRule: String?)
@@ -23,7 +30,6 @@ enum ResolvedRoute {
 // MARK: - Route Resolver
 
 struct RouteResolver {
-
     /// Resolve a RouteAction against a browser snapshot into a concrete ResolvedRoute.
     ///
     /// - Parameters:
@@ -117,7 +123,7 @@ struct RouteResolver {
         preferredWindow: String,
         snapshot: BrowserSnapshot?
     ) -> BrowserSnapshot.FlatTab? {
-        guard let snapshot = snapshot else { return nil }
+        guard let snapshot else { return nil }
 
         let regex: NSRegularExpression
         do {
@@ -158,7 +164,7 @@ struct RouteResolver {
 
     /// Find a window by case-insensitive exact match on givenName.
     private func findWindow(named name: String, snapshot: BrowserSnapshot?) -> WindowSnapshot? {
-        guard let snapshot = snapshot else { return nil }
+        guard let snapshot else { return nil }
         let lower = name.lowercased()
         return snapshot.windows.first { $0.name.lowercased() == lower }
     }

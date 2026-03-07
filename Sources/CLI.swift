@@ -1,6 +1,6 @@
-import Foundation
-import ArgumentParser
 import AppKit
+import ArgumentParser
+import Foundation
 import os
 
 private let logger = Logger(subsystem: "dev.tabzilla.Tabzilla", category: "cli")
@@ -25,7 +25,9 @@ private enum RouteHelper {
         let action: RouteAction
     }
 
-    static func loadAndRoute(url: URL, configPath: String?, sourceApp: String?, sourceWindowTitle: String?) throws -> LoadedRoute {
+    static func loadAndRoute(
+        url: URL, configPath: String?, sourceApp: String?, sourceWindowTitle: String?
+    ) throws -> LoadedRoute {
         let loadedConfig: Config
         do {
             loadedConfig = try ConfigurationManager.resolveConfig(from: configPath)
@@ -33,7 +35,8 @@ private enum RouteHelper {
             throw ValidationError("Failed to load config: \(error.localizedDescription)")
         }
 
-        let resolvedConfigPath = configPath.map { ($0 as NSString).expandingTildeInPath } ?? ConfigurationManager.findConfigPath()
+        let resolvedConfigPath = configPath.map { ($0 as NSString).expandingTildeInPath }
+            ?? ConfigurationManager.findConfigPath()
         let engine = RuleEngine(config: loadedConfig)
         let action = engine.testMatch(url: url, sourceApp: sourceApp, sourceWindowTitle: sourceWindowTitle)
         return LoadedRoute(config: loadedConfig, configPath: resolvedConfigPath, action: action)
@@ -47,11 +50,10 @@ private enum RouteHelper {
         }
         if !action.tabActions.isEmpty {
             let tabDescriptions = action.tabActions.map { tab -> String in
-                let tabType: String
-                switch tab.kind {
-                case .focus: tabType = "focusTab"
-                case .use: tabType = "useTab"
-                case .follow: tabType = "followTab"
+                let tabType = switch tab.kind {
+                case .focus: "focusTab"
+                case .use: "useTab"
+                case .follow: "followTab"
                 }
                 return "\(tabType)=\"\(tab.pattern)\""
             }
@@ -82,25 +84,29 @@ extension CLI {
         var sourceWindowTitle: String?
 
         @Flag(name: .shortAndLong, help: "Show verbose output")
-        var verbose: Bool = false
+        var verbose = false
 
         func run() throws {
             guard let openURL = URL(string: url) else {
                 throw ValidationError("Invalid URL: \(url)")
             }
 
-            let route = try RouteHelper.loadAndRoute(url: openURL, configPath: config, sourceApp: sourceApp, sourceWindowTitle: sourceWindowTitle)
+            let route = try RouteHelper.loadAndRoute(
+                url: openURL, configPath: config, sourceApp: sourceApp, sourceWindowTitle: sourceWindowTitle
+            )
+
+            let action = route.action
 
             if verbose {
                 print("URL:          \(url)")
-                if let sourceApp = sourceApp {
+                if let sourceApp {
                     print("Source App:   \(sourceApp)")
                 }
-                if let sourceWindowTitle = sourceWindowTitle {
+                if let sourceWindowTitle {
                     print("Source Title: \(sourceWindowTitle)")
                 }
                 print("")
-                RouteHelper.printRouteResult(action: route.action)
+                RouteHelper.printRouteResult(action: action)
                 print("Config:       \(route.configPath ?? "default")")
                 print("")
             }
@@ -108,13 +114,15 @@ extension CLI {
             // Execute the action
             let executor = Executor()
             do {
-                logger.info("Opening URL: \(url, privacy: .private) -> browser=\(route.action.browser, privacy: .public), window=\(route.action.windowTarget ?? "none", privacy: .public)")
-                try executor.execute(action: route.action)
+                let bro = action.browser
+                let win = action.windowTarget ?? "none"
+                logger.info("open \(url, privacy: .private) browser=\(bro, privacy: .public) window=\(win, privacy: .public)")
+                try executor.execute(action: action)
                 if verbose {
                     print("Opened successfully.")
                 }
             } catch {
-                logger.error("Failed to open URL: \(error)")
+                logger.error("Failed to open URL: \(error, privacy: .public)")
                 throw ValidationError("Failed to open URL: \(error.localizedDescription)")
             }
         }
@@ -142,21 +150,23 @@ extension CLI {
         var sourceWindowTitle: String?
 
         @Flag(name: .shortAndLong, help: "Show verbose output")
-        var verbose: Bool = false
+        var verbose = false
 
         func run() throws {
             guard let testURL = URL(string: url) else {
                 throw ValidationError("Invalid URL: \(url)")
             }
 
-            let route = try RouteHelper.loadAndRoute(url: testURL, configPath: config, sourceApp: sourceApp, sourceWindowTitle: sourceWindowTitle)
+            let route = try RouteHelper.loadAndRoute(
+                url: testURL, configPath: config, sourceApp: sourceApp, sourceWindowTitle: sourceWindowTitle
+            )
 
             // Print results
             print("URL:          \(url)")
-            if let sourceApp = sourceApp {
+            if let sourceApp {
                 print("Source App:   \(sourceApp)")
             }
-            if let sourceWindowTitle = sourceWindowTitle {
+            if let sourceWindowTitle {
                 print("Source Title: \(sourceWindowTitle)")
             }
             print("")
@@ -189,11 +199,11 @@ extension CLI {
             print("")
             print("Version: \(appVersion)")
 
-            if isRunning, let pid = pid {
+            if isRunning, let pid {
                 let daemonVersion = DaemonPID.getVersion()
-                if let dv = daemonVersion {
-                    let mismatch = dv != appVersion ? " (restart to update)" : ""
-                    print("Daemon:  Running (PID \(pid)) [\(dv)]\(mismatch)")
+                if let version = daemonVersion {
+                    let mismatch = version != appVersion ? " (restart to update)" : ""
+                    print("Daemon:  Running (PID \(pid)) [\(version)]\(mismatch)")
                 } else {
                     print("Daemon:  Running (PID \(pid))")
                 }
@@ -286,7 +296,8 @@ extension CLI {
             let daemonState = DaemonState(running: isRunning, pid: isRunning ? pid : nil, version: daemonVersion)
 
             // Config state
-            let configPath = config.map { ($0 as NSString).expandingTildeInPath } ?? ConfigurationManager.findConfigPath()
+            let configPath = config.map { ($0 as NSString).expandingTildeInPath }
+                ?? ConfigurationManager.findConfigPath()
 
             let configInfo: ConfigInfo
             let browsers: [BrowserState]
@@ -362,19 +373,34 @@ extension CLI {
                             error: nil
                         )
                     } else {
-                        return BrowserState(bundleId: bundleId, installed: isInstalled, supportsScriptingBridge: true, running: false, windowCount: nil, windows: nil, error: "Could not query browser state")
+                        return BrowserState(
+                            bundleId: bundleId,
+                            installed: isInstalled,
+                            supportsScriptingBridge: true,
+                            running: false,
+                            windowCount: nil,
+                            windows: nil,
+                            error: "Could not query browser state"
+                        )
                     }
                 } else {
-                    return BrowserState(bundleId: bundleId, installed: isInstalled, supportsScriptingBridge: false, running: isAppRunning(bundleId: bundleId), windowCount: nil, windows: nil, error: nil)
+                    return BrowserState(
+                        bundleId: bundleId,
+                        installed: isInstalled,
+                        supportsScriptingBridge: false,
+                        running: isAppRunning(bundleId: bundleId),
+                        windowCount: nil,
+                        windows: nil,
+                        error: nil
+                    )
                 }
             }
         }
 
         /// Check if an app is running by bundle ID
         private func isAppRunning(bundleId: String) -> Bool {
-            return NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == bundleId }
+            NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == bundleId }
         }
-
     }
 }
 
@@ -417,7 +443,8 @@ enum DaemonPID {
     static func get() -> pid_t? {
         let pidPath = pidFile
         guard let pidString = try? String(contentsOfFile: pidPath, encoding: .utf8),
-              let pid = pid_t(pidString.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+              let pid = pid_t(pidString.trimmingCharacters(in: .whitespacesAndNewlines))
+        else {
             return nil
         }
         return pid

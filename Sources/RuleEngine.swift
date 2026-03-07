@@ -23,9 +23,9 @@ struct RouteAction {
 
 /// Kind of tab action to perform
 enum TabActionKind {
-    case focus   // focusTab: focus existing tab, don't navigate
-    case use     // useTab: focus and navigate existing tab
-    case follow  // followTab: open new tab in same window as matched tab
+    case focus // focusTab: focus existing tab, don't navigate
+    case use // useTab: focus and navigate existing tab
+    case follow // followTab: open new tab in same window as matched tab
 }
 
 struct TabAction {
@@ -127,8 +127,8 @@ struct RuleEngine {
             // groups[0] = full match, groups[1..] = capture groups
             // substituteCaptures() starts at index 1 for \1, \2, etc.
             var groups: [String] = []
-            for i in 0..<match.numberOfRanges {
-                if let range = Range(match.range(at: i), in: string) {
+            for idx in 0..<match.numberOfRanges {
+                if let range = Range(match.range(at: idx), in: string) {
                     groups.append(String(string[range]))
                 } else {
                     groups.append("")
@@ -137,7 +137,7 @@ struct RuleEngine {
 
             return groups
         } catch {
-            logger.error("Invalid regex pattern: \(pattern, privacy: .private) - \(error)")
+            logger.error("Invalid regex pattern: \(pattern, privacy: .private) - \(error, privacy: .public)")
             return nil
         }
     }
@@ -150,9 +150,9 @@ struct RuleEngine {
         // Replace \1–\9 with regex-escaped captured groups.
         // Capped at 9 because that's the POSIX/PCRE convention for backreference syntax,
         // and no realistic URL pattern needs more than 9 capture groups.
-        for i in 1..<min(groups.count, 10) {
-            let escapedGroup = NSRegularExpression.escapedPattern(for: groups[i])
-            result = result.replacingOccurrences(of: "\\\(i)", with: escapedGroup)
+        for idx in 1..<min(groups.count, 10) {
+            let escapedGroup = NSRegularExpression.escapedPattern(for: groups[idx])
+            result = result.replacingOccurrences(of: "\\\(idx)", with: escapedGroup)
         }
 
         return result

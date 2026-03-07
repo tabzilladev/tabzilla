@@ -2,68 +2,72 @@ import XCTest
 @testable import Tabzilla
 
 final class RuleEngineTests: XCTestCase {
-
     // MARK: - Basic URL Matching
 
-    func testBasicURLMatch() {
+    func testBasicURLMatch() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "github", url: "github\\.com", window: "Code")
+                Config.Rule(name: "github", url: "github\\.com", window: "Code"),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "https://github.com/user/repo")!)
+        let action = try engine.testMatch(url: XCTUnwrap(URL(string: "https://github.com/user/repo")))
 
         XCTAssertEqual(action.matchedRule, "github")
         XCTAssertEqual(action.windowTarget, "Code")
-        XCTAssertEqual(action.browser, "com.google.Chrome")  // From defaults
+        XCTAssertEqual(action.browser, "com.google.Chrome") // From defaults
     }
 
-    func testURLNoMatch() {
+    func testURLNoMatch() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "github", url: "github\\.com", window: "Code")
+                Config.Rule(name: "github", url: "github\\.com", window: "Code"),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "https://google.com/search")!)
+        let action = try engine.testMatch(url: XCTUnwrap(URL(string: "https://google.com/search")))
 
         XCTAssertNil(action.matchedRule)
         XCTAssertEqual(action.windowTarget, "Default")
         XCTAssertEqual(action.browser, "com.google.Chrome")
     }
 
-    func testCaseInsensitiveURL() {
+    func testCaseInsensitiveURL() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "github", url: "(?i)github\\.com", window: "Code")
+                Config.Rule(name: "github", url: "(?i)github\\.com", window: "Code"),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "https://GITHUB.COM/user/repo")!)
+        let action = try engine.testMatch(url: XCTUnwrap(URL(string: "https://GITHUB.COM/user/repo")))
 
         XCTAssertEqual(action.matchedRule, "github")
     }
 
     // MARK: - Source App Matching
 
-    func testSourceAppMatch() {
+    func testSourceAppMatch() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "slack", sourceApp: "^com\\.tinyspeck\\.slackmacgap$", browser: "com.google.Chrome.beta", window: "Work")
+                Config.Rule(
+                    name: "slack",
+                    sourceApp: "^com\\.tinyspeck\\.slackmacgap$",
+                    browser: "com.google.Chrome.beta",
+                    window: "Work"
+                ),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(
-            url: URL(string: "https://example.com")!,
+        let action = try engine.testMatch(
+            url: XCTUnwrap(URL(string: "https://example.com")),
             sourceApp: "com.tinyspeck.slackmacgap"
         )
 
@@ -72,17 +76,22 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertEqual(action.windowTarget, "Work")
     }
 
-    func testSourceAppNoMatch() {
+    func testSourceAppNoMatch() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "slack", sourceApp: "^com\\.tinyspeck\\.slackmacgap$", browser: "com.google.Chrome.beta", window: "Work")
+                Config.Rule(
+                    name: "slack",
+                    sourceApp: "^com\\.tinyspeck\\.slackmacgap$",
+                    browser: "com.google.Chrome.beta",
+                    window: "Work"
+                ),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(
-            url: URL(string: "https://example.com")!,
+        let action = try engine.testMatch(
+            url: XCTUnwrap(URL(string: "https://example.com")),
             sourceApp: "com.apple.mail"
         )
 
@@ -91,17 +100,23 @@ final class RuleEngineTests: XCTestCase {
 
     // MARK: - Source Window Title Matching
 
-    func testSourceWindowTitleMatch() {
+    func testSourceWindowTitleMatch() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "work-slack", sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: "(?i)work", browser: "com.google.Chrome.beta", window: "Work")
+                Config.Rule(
+                    name: "work-slack",
+                    sourceApp: "^com\\.tinyspeck\\.slackmacgap$",
+                    sourceWindowTitle: "(?i)work",
+                    browser: "com.google.Chrome.beta",
+                    window: "Work"
+                ),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(
-            url: URL(string: "https://example.com")!,
+        let action = try engine.testMatch(
+            url: XCTUnwrap(URL(string: "https://example.com")),
             sourceApp: "com.tinyspeck.slackmacgap",
             sourceWindowTitle: "general - Work Corp - Slack"
         )
@@ -110,17 +125,23 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertEqual(action.windowTarget, "Work")
     }
 
-    func testSourceWindowTitleNoMatch() {
+    func testSourceWindowTitleNoMatch() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "work-slack", sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: "(?i)work", browser: "com.google.Chrome.beta", window: "Work")
+                Config.Rule(
+                    name: "work-slack",
+                    sourceApp: "^com\\.tinyspeck\\.slackmacgap$",
+                    sourceWindowTitle: "(?i)work",
+                    browser: "com.google.Chrome.beta",
+                    window: "Work"
+                ),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(
-            url: URL(string: "https://example.com")!,
+        let action = try engine.testMatch(
+            url: XCTUnwrap(URL(string: "https://example.com")),
             sourceApp: "com.tinyspeck.slackmacgap",
             sourceWindowTitle: "general - Personal - Slack"
         )
@@ -130,35 +151,42 @@ final class RuleEngineTests: XCTestCase {
 
     // MARK: - Combined Matching (AND logic)
 
-    func testCombinedMatch() {
+    func testCombinedMatch() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "work-github", url: "github\\.com", sourceApp: "^com\\.tinyspeck\\.slackmacgap$", sourceWindowTitle: "(?i)work", browser: "com.google.Chrome.beta", window: "Work-Code")
+                Config.Rule(
+                    name: "work-github",
+                    url: "github\\.com",
+                    sourceApp: "^com\\.tinyspeck\\.slackmacgap$",
+                    sourceWindowTitle: "(?i)work",
+                    browser: "com.google.Chrome.beta",
+                    window: "Work-Code"
+                ),
             ]
         )
 
         let engine = RuleEngine(config: config)
 
         // All conditions match
-        let action1 = engine.testMatch(
-            url: URL(string: "https://github.com/user/repo")!,
+        let action1 = try engine.testMatch(
+            url: XCTUnwrap(URL(string: "https://github.com/user/repo")),
             sourceApp: "com.tinyspeck.slackmacgap",
             sourceWindowTitle: "general - Work Corp - Slack"
         )
         XCTAssertEqual(action1.matchedRule, "work-github")
 
         // URL doesn't match
-        let action2 = engine.testMatch(
-            url: URL(string: "https://google.com")!,
+        let action2 = try engine.testMatch(
+            url: XCTUnwrap(URL(string: "https://google.com")),
             sourceApp: "com.tinyspeck.slackmacgap",
             sourceWindowTitle: "general - Work Corp - Slack"
         )
         XCTAssertNil(action2.matchedRule)
 
         // Source app doesn't match
-        let action3 = engine.testMatch(
-            url: URL(string: "https://github.com/user/repo")!,
+        let action3 = try engine.testMatch(
+            url: XCTUnwrap(URL(string: "https://github.com/user/repo")),
             sourceApp: "com.apple.mail",
             sourceWindowTitle: "general - Work Corp - Slack"
         )
@@ -167,16 +195,21 @@ final class RuleEngineTests: XCTestCase {
 
     // MARK: - Tab Reuse
 
-    func testUseTabPattern() {
+    func testUseTabPattern() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "google-docs", url: "docs\\.google\\.com/document/d/([^/]+)", useTab: "docs\\.google\\.com/document/d/\\1")
+                Config.Rule(
+                    name: "google-docs",
+                    url: "docs\\.google\\.com/document/d/([^/]+)",
+                    useTab: "docs\\.google\\.com/document/d/\\1"
+                ),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "https://docs.google.com/document/d/ABC123/edit#heading=h.xyz")!)
+        let action = try engine
+            .testMatch(url: XCTUnwrap(URL(string: "https://docs.google.com/document/d/ABC123/edit#heading=h.xyz")))
 
         XCTAssertEqual(action.matchedRule, "google-docs")
         XCTAssertEqual(action.tabActions.count, 1)
@@ -184,16 +217,20 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertEqual(action.tabActions.first?.pattern, "docs\\.google\\.com/document/d/ABC123")
     }
 
-    func testFocusTabPattern() {
+    func testFocusTabPattern() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "jira", url: "jira\\.example\\.com/browse/(\\w+-\\d+)", focusTab: "jira\\.example\\.com/browse/\\1")
+                Config.Rule(
+                    name: "jira",
+                    url: "jira\\.example\\.com/browse/(\\w+-\\d+)",
+                    focusTab: "jira\\.example\\.com/browse/\\1"
+                ),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "https://jira.example.com/browse/PROJ-123")!)
+        let action = try engine.testMatch(url: XCTUnwrap(URL(string: "https://jira.example.com/browse/PROJ-123")))
 
         XCTAssertEqual(action.matchedRule, "jira")
         XCTAssertEqual(action.tabActions.count, 1)
@@ -203,43 +240,43 @@ final class RuleEngineTests: XCTestCase {
 
     // MARK: - Rule Priority
 
-    func testRulePriority() {
+    func testRulePriority() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
                 Config.Rule(name: "specific", url: "github\\.com/airbnb", window: "Airbnb"),
                 Config.Rule(name: "general", url: "github\\.com", window: "Code"),
-                Config.Rule(name: "catchall", url: ".*")
+                Config.Rule(name: "catchall", url: ".*"),
             ]
         )
 
         let engine = RuleEngine(config: config)
 
         // Should match most specific first
-        let action1 = engine.testMatch(url: URL(string: "https://github.com/airbnb/repo")!)
+        let action1 = try engine.testMatch(url: XCTUnwrap(URL(string: "https://github.com/airbnb/repo")))
         XCTAssertEqual(action1.matchedRule, "specific")
         XCTAssertEqual(action1.windowTarget, "Airbnb")
 
         // Should match second rule
-        let action2 = engine.testMatch(url: URL(string: "https://github.com/other/repo")!)
+        let action2 = try engine.testMatch(url: XCTUnwrap(URL(string: "https://github.com/other/repo")))
         XCTAssertEqual(action2.matchedRule, "general")
         XCTAssertEqual(action2.windowTarget, "Code")
 
         // Should match catchall
-        let action3 = engine.testMatch(url: URL(string: "https://example.com")!)
+        let action3 = try engine.testMatch(url: XCTUnwrap(URL(string: "https://example.com")))
         XCTAssertEqual(action3.matchedRule, "catchall")
     }
 
     // MARK: - Default Fallback
 
-    func testDefaultFallback() {
+    func testDefaultFallback() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome.beta", window: "MyDefault"),
             rules: []
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "https://example.com")!)
+        let action = try engine.testMatch(url: XCTUnwrap(URL(string: "https://example.com")))
 
         XCTAssertNil(action.matchedRule)
         XCTAssertEqual(action.browser, "com.google.Chrome.beta")
@@ -248,17 +285,17 @@ final class RuleEngineTests: XCTestCase {
 
     // MARK: - Invalid Regex Handling
 
-    func testInvalidRegexInURL() {
+    func testInvalidRegexInURL() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
                 Config.Rule(name: "invalid", url: "[invalid(regex", window: "Test"),
-                Config.Rule(name: "catchall", url: ".*")
+                Config.Rule(name: "catchall", url: ".*"),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "https://example.com")!)
+        let action = try engine.testMatch(url: XCTUnwrap(URL(string: "https://example.com")))
 
         // Should skip invalid rule and match catchall
         XCTAssertEqual(action.matchedRule, "catchall")
@@ -266,46 +303,46 @@ final class RuleEngineTests: XCTestCase {
 
     // MARK: - Complex Regex Patterns
 
-    func testComplexRegexPatterns() {
+    func testComplexRegexPatterns() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
                 // Multiple domains with OR
                 Config.Rule(name: "work-domains", url: "(?i)(corp|jira|wiki)\\.example\\.com", window: "Work"),
                 // Production-only pattern (matches app.myapp.com but not staging.myapp.com)
-                Config.Rule(name: "prod-only", url: "://app\\.myapp\\.com", window: "Prod")
+                Config.Rule(name: "prod-only", url: "://app\\.myapp\\.com", window: "Prod"),
             ]
         )
 
         let engine = RuleEngine(config: config)
 
         // Test multiple domains
-        let action1 = engine.testMatch(url: URL(string: "https://corp.example.com/page")!)
+        let action1 = try engine.testMatch(url: XCTUnwrap(URL(string: "https://corp.example.com/page")))
         XCTAssertEqual(action1.matchedRule, "work-domains")
 
-        let action2 = engine.testMatch(url: URL(string: "https://JIRA.EXAMPLE.COM/browse/PROJ-1")!)
+        let action2 = try engine.testMatch(url: XCTUnwrap(URL(string: "https://JIRA.EXAMPLE.COM/browse/PROJ-1")))
         XCTAssertEqual(action2.matchedRule, "work-domains")
 
         // Test subdomain-specific pattern
-        let action3 = engine.testMatch(url: URL(string: "https://app.myapp.com/dashboard")!)
+        let action3 = try engine.testMatch(url: XCTUnwrap(URL(string: "https://app.myapp.com/dashboard")))
         XCTAssertEqual(action3.matchedRule, "prod-only")
 
-        let action4 = engine.testMatch(url: URL(string: "https://staging.myapp.com/dashboard")!)
-        XCTAssertNil(action4.matchedRule)  // Should not match since it's staging subdomain
+        let action4 = try engine.testMatch(url: XCTUnwrap(URL(string: "https://staging.myapp.com/dashboard")))
+        XCTAssertNil(action4.matchedRule) // Should not match since it's staging subdomain
     }
 
     // MARK: - followTab Tests
 
-    func testFollowTabPattern() {
+    func testFollowTabPattern() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "github", url: "github\\.com/([^/]+/[^/]+)", followTab: "github\\.com/\\1")
+                Config.Rule(name: "github", url: "github\\.com/([^/]+/[^/]+)", followTab: "github\\.com/\\1"),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "https://github.com/acme/widgets")!)
+        let action = try engine.testMatch(url: XCTUnwrap(URL(string: "https://github.com/acme/widgets")))
 
         XCTAssertEqual(action.matchedRule, "github")
         XCTAssertEqual(action.tabActions.count, 1)
@@ -314,17 +351,23 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertEqual(action.tabActions.first?.pattern, "github\\.com/acme\\/widgets")
     }
 
-    func testMultipleTabActionsOrdering() {
+    func testMultipleTabActionsOrdering() throws {
         // Test that multiple tab actions are ordered: focusTab → useTab → followTab
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "github", url: "github\\.com/([^/]+/[^/]+)", useTab: "github\\.com/\\1/issues", focusTab: "github\\.com/\\1$", followTab: "github\\.com")
+                Config.Rule(
+                    name: "github",
+                    url: "github\\.com/([^/]+/[^/]+)",
+                    useTab: "github\\.com/\\1/issues",
+                    focusTab: "github\\.com/\\1$",
+                    followTab: "github\\.com"
+                ),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "https://github.com/acme/widgets")!)
+        let action = try engine.testMatch(url: XCTUnwrap(URL(string: "https://github.com/acme/widgets")))
 
         XCTAssertEqual(action.matchedRule, "github")
         XCTAssertEqual(action.tabActions.count, 3)
@@ -338,32 +381,32 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertEqual(action.tabActions[2].pattern, "github\\.com")
     }
 
-    func testNoTabActionsWhenNotSpecified() {
+    func testNoTabActionsWhenNotSpecified() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "github", url: "github\\.com", window: "Code")
+                Config.Rule(name: "github", url: "github\\.com", window: "Code"),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "https://github.com/user/repo")!)
+        let action = try engine.testMatch(url: XCTUnwrap(URL(string: "https://github.com/user/repo")))
 
         XCTAssertEqual(action.matchedRule, "github")
         XCTAssertTrue(action.tabActions.isEmpty)
     }
 
-    func testSingleTabActionBackwardCompatibility() {
+    func testSingleTabActionBackwardCompatibility() throws {
         // Verify that specifying only useTab still works correctly
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "docs", url: "docs\\.google\\.com", useTab: "docs\\.google\\.com")
+                Config.Rule(name: "docs", url: "docs\\.google\\.com", useTab: "docs\\.google\\.com"),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "https://docs.google.com/document")!)
+        let action = try engine.testMatch(url: XCTUnwrap(URL(string: "https://docs.google.com/document")))
 
         XCTAssertEqual(action.tabActions.count, 1)
         XCTAssertEqual(action.tabActions.first?.kind, .use)
@@ -371,45 +414,45 @@ final class RuleEngineTests: XCTestCase {
 
     // MARK: - Chrome URL Scheme Matching
 
-    func testChromeURLMatch() {
+    func testChromeURLMatch() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "chrome-internal", url: "^chrome://", window: "Settings")
+                Config.Rule(name: "chrome-internal", url: "^chrome://", window: "Settings"),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "chrome://newtab")!)
+        let action = try engine.testMatch(url: XCTUnwrap(URL(string: "chrome://newtab")))
 
         XCTAssertEqual(action.matchedRule, "chrome-internal")
         XCTAssertEqual(action.windowTarget, "Settings")
     }
 
-    func testChromeURLNoMatchDifferentPage() {
+    func testChromeURLNoMatchDifferentPage() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "chrome-settings", url: "^chrome://settings", window: "Settings")
+                Config.Rule(name: "chrome-settings", url: "^chrome://settings", window: "Settings"),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "chrome://newtab")!)
+        let action = try engine.testMatch(url: XCTUnwrap(URL(string: "chrome://newtab")))
 
         XCTAssertNil(action.matchedRule)
     }
 
-    func testChromeSettingsWithUseTab() {
+    func testChromeSettingsWithUseTab() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "chrome-settings", url: "^chrome://settings", useTab: "chrome://settings")
+                Config.Rule(name: "chrome-settings", url: "^chrome://settings", useTab: "chrome://settings"),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "chrome://settings")!)
+        let action = try engine.testMatch(url: XCTUnwrap(URL(string: "chrome://settings")))
 
         XCTAssertEqual(action.matchedRule, "chrome-settings")
         XCTAssertEqual(action.tabActions.count, 1)
@@ -417,50 +460,56 @@ final class RuleEngineTests: XCTestCase {
         XCTAssertEqual(action.tabActions.first?.pattern, "chrome://settings")
     }
 
-    func testChromeExtensionURLMatch() {
+    func testChromeExtensionURLMatch() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "extension", url: "^chrome-extension://", window: "Extensions")
+                Config.Rule(name: "extension", url: "^chrome-extension://", window: "Extensions"),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "chrome-extension://abcdef1234567890/options.html")!)
+        let action = try engine
+            .testMatch(url: XCTUnwrap(URL(string: "chrome-extension://abcdef1234567890/options.html")))
 
         XCTAssertEqual(action.matchedRule, "extension")
         XCTAssertEqual(action.windowTarget, "Extensions")
     }
 
-    func testCatchAllMatchesChromeURLs() {
+    func testCatchAllMatchesChromeURLs() throws {
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "catchall", url: ".*")
+                Config.Rule(name: "catchall", url: ".*"),
             ]
         )
 
         let engine = RuleEngine(config: config)
 
-        let action1 = engine.testMatch(url: URL(string: "chrome://newtab")!)
+        let action1 = try engine.testMatch(url: XCTUnwrap(URL(string: "chrome://newtab")))
         XCTAssertEqual(action1.matchedRule, "catchall")
 
-        let action2 = engine.testMatch(url: URL(string: "chrome-extension://abc/page.html")!)
+        let action2 = try engine.testMatch(url: XCTUnwrap(URL(string: "chrome-extension://abc/page.html")))
         XCTAssertEqual(action2.matchedRule, "catchall")
     }
 
-    func testCaptureGroupsAreRegexEscaped() {
+    func testCaptureGroupsAreRegexEscaped() throws {
         // Verify that regex metacharacters in captured groups are escaped
         // so they match literally (e.g., "?" in query strings)
         let config = Config(
             defaults: Config.Defaults(browser: "com.google.Chrome", window: "Default"),
             rules: [
-                Config.Rule(name: "pr-with-query", url: "github\\.com/([^/]+/[^/]+)/pull/(\\d+)(.*)", focusTab: "github\\.com/\\1/pull/\\2\\3$", followTab: "github\\.com/\\1/pull/\\2")
+                Config.Rule(
+                    name: "pr-with-query",
+                    url: "github\\.com/([^/]+/[^/]+)/pull/(\\d+)(.*)",
+                    focusTab: "github\\.com/\\1/pull/\\2\\3$",
+                    followTab: "github\\.com/\\1/pull/\\2"
+                ),
             ]
         )
 
         let engine = RuleEngine(config: config)
-        let action = engine.testMatch(url: URL(string: "https://github.com/user/repo/pull/123?foo=bar")!)
+        let action = try engine.testMatch(url: XCTUnwrap(URL(string: "https://github.com/user/repo/pull/123?foo=bar")))
 
         XCTAssertEqual(action.matchedRule, "pr-with-query")
         XCTAssertEqual(action.tabActions.count, 2)

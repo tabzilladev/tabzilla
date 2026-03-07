@@ -1,12 +1,11 @@
-import Foundation
 import AppKit
+import Foundation
 import os
 
 private let logger = Logger(subsystem: "dev.tabzilla.Tabzilla", category: "executor")
 
 /// Executes route actions by controlling browsers
 struct Executor {
-
     enum ExecutorError: Error, LocalizedError {
         case browserNotFound(String)
         case scriptingError(String)
@@ -14,12 +13,12 @@ struct Executor {
 
         var errorDescription: String? {
             switch self {
-            case .browserNotFound(let bundleId):
-                return "Browser not found: \(bundleId)"
-            case .scriptingError(let message):
-                return "Scripting error: \(message)"
-            case .urlOpenFailed(let url):
-                return "Failed to open URL: \(url)"
+            case let .browserNotFound(bundleId):
+                "Browser not found: \(bundleId)"
+            case let .scriptingError(message):
+                "Scripting error: \(message)"
+            case let .urlOpenFailed(url):
+                "Failed to open URL: \(url)"
             }
         }
     }
@@ -52,7 +51,7 @@ struct Executor {
 
     private func executeRoute(_ route: ResolvedRoute) throws {
         switch route {
-        case .focusTab(let bundleId, let windowId, let tabIndex, let matchedRule):
+        case let .focusTab(bundleId, windowId, tabIndex, matchedRule):
             logger.info("Focusing tab (focusTab) matchedRule=\(matchedRule ?? "none", privacy: .public)")
             chromeController.focusTab(
                 withWindowId: windowId,
@@ -60,7 +59,7 @@ struct Executor {
                 bundleId: bundleId
             )
 
-        case .navigateTab(let bundleId, let windowId, let tabId, let tabIndex, let url, let matchedRule):
+        case let .navigateTab(bundleId, windowId, tabId, tabIndex, url, matchedRule):
             logger.info("Navigating tab (useTab) matchedRule=\(matchedRule ?? "none", privacy: .public)")
             chromeController.focusTab(
                 withWindowId: windowId,
@@ -74,8 +73,9 @@ struct Executor {
                 bundleId: bundleId
             )
 
-        case .openInWindow(let bundleId, let windowId, let url, let matchedRule):
-            logger.info("Opening URL in window (followTab/window) matchedRule=\(matchedRule ?? "none", privacy: .public)")
+        case let .openInWindow(bundleId, windowId, url, matchedRule):
+            logger
+                .info("Opening URL in window (followTab/window) matchedRule=\(matchedRule ?? "none", privacy: .public)")
             var error: NSError?
             let success = chromeController.openURL(
                 url,
@@ -85,12 +85,12 @@ struct Executor {
             )
             if !success {
                 let message = error?.localizedDescription ?? "Unknown error"
-                logger.error("Failed to open URL in window: \(message)")
+                logger.error("Failed to open URL in window: \(message, privacy: .public)")
                 throw ExecutorError.scriptingError(message)
             }
 
-        case .createWindow(let bundleId, let windowName, let url, let matchedRule):
-            logger.info("Creating window '\(windowName, privacy: .public)' matchedRule=\(matchedRule ?? "none", privacy: .public)")
+        case let .createWindow(bundleId, windowName, url, matchedRule):
+            logger.info("Creating window '\(windowName, privacy: .public)' rule=\(matchedRule ?? "none", privacy: .public)")
             var error: NSError?
             let success = chromeController.openURL(
                 url,
@@ -100,11 +100,11 @@ struct Executor {
             )
             if !success {
                 let message = error?.localizedDescription ?? "Unknown error"
-                logger.error("Failed to create window: \(message)")
+                logger.error("Failed to create window: \(message, privacy: .public)")
                 throw ExecutorError.scriptingError(message)
             }
 
-        case .openWithWorkspace(let bundleId, let url, let matchedRule):
+        case let .openWithWorkspace(bundleId, url, matchedRule):
             logger.info("Opening URL with workspace matchedRule=\(matchedRule ?? "none", privacy: .public)")
             try openURLInBrowser(url, bundleId: bundleId)
         }
@@ -118,9 +118,9 @@ struct Executor {
             throw ExecutorError.browserNotFound(bundleId)
         }
 
-        NSWorkspace.shared.open([url], withApplicationAt: browserURL, configuration: configuration) { app, error in
-            if let error = error {
-                logger.error("Failed to open URL: \(error)")
+        NSWorkspace.shared.open([url], withApplicationAt: browserURL, configuration: configuration) { _, error in
+            if let error {
+                logger.error("Failed to open URL: \(error, privacy: .public)")
             }
         }
     }

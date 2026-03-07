@@ -3,7 +3,6 @@ import Yams
 @testable import Tabzilla
 
 final class ConfigTests: XCTestCase {
-
     // MARK: - YAML Parsing
 
     func testParseMinimalConfig() throws {

@@ -1,0 +1,37 @@
+# clang-format configuration for Objective-C
+Language: ObjC
+BasedOnStyle: Google
+
+# Indentation
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ObjCBlockIndentWidth: 4
+
+# Line length
+ColumnLimit: 120
+
+# Braces
+BreakBeforeBraces: Attach
+
+# Alignment
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignTrailingComments: true
+AlignAfterOpenBracket: AlwaysBreak
+
+# Method calls / declarations
+ObjCSpaceAfterProperty: true
+ObjCSpaceBeforeProtocolList: true
+
+# Sorting includes
+SortIncludes: false
+
+# Pointer alignment
+PointerAlignment: Right
+
+# Short constructs
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Empty

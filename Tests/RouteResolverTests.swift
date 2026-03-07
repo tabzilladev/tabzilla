@@ -2,7 +2,6 @@ import XCTest
 @testable import Tabzilla
 
 final class RouteResolverTests: XCTestCase {
-
     private let resolver = RouteResolver()
     private let chromeBundleId = "com.google.Chrome"
     private let safariBundleId = "com.apple.Safari"
@@ -53,7 +52,7 @@ final class RouteResolverTests: XCTestCase {
         let action = makeAction(browser: safariBundleId)
         let result = resolver.resolve(action: action, snapshot: nil, isChromeBasedBrowser: false)
 
-        guard case .openWithWorkspace(let bundleId, let url, _) = result else {
+        guard case let .openWithWorkspace(bundleId, url, _) = result else {
             return XCTFail("Expected .openWithWorkspace, got \(result)")
         }
         XCTAssertEqual(bundleId, safariBundleId)
@@ -74,7 +73,7 @@ final class RouteResolverTests: XCTestCase {
         let action = makeAction(browser: safariBundleId, matchedRule: "my-rule")
         let result = resolver.resolve(action: action, snapshot: nil, isChromeBasedBrowser: false)
 
-        guard case .openWithWorkspace(_, _, let matchedRule) = result else {
+        guard case let .openWithWorkspace(_, _, matchedRule) = result else {
             return XCTFail("Expected .openWithWorkspace, got \(result)")
         }
         XCTAssertEqual(matchedRule, "my-rule")
@@ -92,7 +91,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .focusTab(let bundleId, let windowId, let tabIndex, _) = result else {
+        guard case let .focusTab(bundleId, windowId, tabIndex, _) = result else {
             return XCTFail("Expected .focusTab, got \(result)")
         }
         XCTAssertEqual(bundleId, chromeBundleId)
@@ -113,7 +112,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .navigateTab(let bundleId, let windowId, let tabId, let tabIndex, let url, _) = result else {
+        guard case let .navigateTab(bundleId, windowId, tabId, tabIndex, url, _) = result else {
             return XCTFail("Expected .navigateTab, got \(result)")
         }
         XCTAssertEqual(bundleId, chromeBundleId)
@@ -135,7 +134,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .openInWindow(let bundleId, let windowId, let url, _) = result else {
+        guard case let .openInWindow(bundleId, windowId, url, _) = result else {
             return XCTFail("Expected .openInWindow, got \(result)")
         }
         XCTAssertEqual(bundleId, chromeBundleId)
@@ -152,7 +151,7 @@ final class RouteResolverTests: XCTestCase {
         let action = makeAction(
             tabActions: [
                 TabAction(pattern: "github\\.com", kind: .focus),
-                TabAction(pattern: "github\\.com", kind: .use)
+                TabAction(pattern: "github\\.com", kind: .use),
             ]
         )
 
@@ -170,7 +169,7 @@ final class RouteResolverTests: XCTestCase {
         let action = makeAction(
             tabActions: [
                 TabAction(pattern: "github\\.com", kind: .use),
-                TabAction(pattern: "github\\.com", kind: .follow)
+                TabAction(pattern: "github\\.com", kind: .follow),
             ]
         )
 
@@ -189,7 +188,7 @@ final class RouteResolverTests: XCTestCase {
         let action = makeAction(
             tabActions: [
                 TabAction(pattern: "nonexistent\\.pattern", kind: .focus),
-                TabAction(pattern: "github\\.com", kind: .use)
+                TabAction(pattern: "github\\.com", kind: .use),
             ]
         )
 
@@ -215,7 +214,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .focusTab(_, let windowId, _, _) = result else {
+        guard case let .focusTab(_, windowId, _, _) = result else {
             return XCTFail("Expected .focusTab, got \(result)")
         }
         // Should find tab in preferred window "Work" first
@@ -227,13 +226,13 @@ final class RouteResolverTests: XCTestCase {
         let window = makeWindow(id: "w1", name: "Work", tabs: [tab])
         let snapshot = makeSnapshot(windows: [window])
         let action = makeAction(
-            windowTarget: "WORK",  // different case
+            windowTarget: "WORK", // different case
             tabActions: [TabAction(pattern: "github\\.com", kind: .focus)]
         )
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .focusTab(_, let windowId, _, _) = result else {
+        guard case let .focusTab(_, windowId, _, _) = result else {
             return XCTFail("Expected .focusTab, got \(result)")
         }
         XCTAssertEqual(windowId, "w1")
@@ -241,7 +240,7 @@ final class RouteResolverTests: XCTestCase {
 
     func testFallsBackToOtherWindowsWhenNoTabInPreferred() {
         let tabInOther = makeTab(id: "t1", index: 1, url: "https://github.com/acme/repo")
-        let preferredWindow = makeWindow(id: "w1", name: "Work", tabs: [])  // no matching tabs
+        let preferredWindow = makeWindow(id: "w1", name: "Work", tabs: []) // no matching tabs
         let otherWindow = makeWindow(id: "w2", name: "Personal", tabs: [tabInOther])
         let snapshot = makeSnapshot(windows: [preferredWindow, otherWindow])
         let action = makeAction(
@@ -251,7 +250,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .focusTab(_, let windowId, _, _) = result else {
+        guard case let .focusTab(_, windowId, _, _) = result else {
             return XCTFail("Expected .focusTab, got \(result)")
         }
         // Should find tab in other window as fallback
@@ -268,7 +267,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .openInWindow(let bundleId, let windowId, let url, _) = result else {
+        guard case let .openInWindow(bundleId, windowId, url, _) = result else {
             return XCTFail("Expected .openInWindow, got \(result)")
         }
         XCTAssertEqual(bundleId, chromeBundleId)
@@ -277,12 +276,12 @@ final class RouteResolverTests: XCTestCase {
     }
 
     func testNamedWindowMissingReturnsCreateWindow() {
-        let snapshot = makeSnapshot(windows: [])  // no windows
+        let snapshot = makeSnapshot(windows: []) // no windows
         let action = makeAction(windowTarget: "Work")
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .createWindow(let bundleId, let windowName, let url, _) = result else {
+        guard case let .createWindow(bundleId, windowName, url, _) = result else {
             return XCTFail("Expected .createWindow, got \(result)")
         }
         XCTAssertEqual(bundleId, chromeBundleId)
@@ -297,7 +296,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .openInWindow(_, let windowId, _, _) = result else {
+        guard case let .openInWindow(_, windowId, _, _) = result else {
             return XCTFail("Expected .openInWindow, got \(result)")
         }
         XCTAssertEqual(windowId, "w1")
@@ -306,13 +305,13 @@ final class RouteResolverTests: XCTestCase {
     func testTabNoMatchThenWindowAlsoMissingReturnsCreateWindow() {
         let snapshot = makeSnapshot(windows: [makeWindow(id: "w1", name: "Personal", tabs: [])])
         let action = makeAction(
-            windowTarget: "Work",  // different from snapshot window
+            windowTarget: "Work", // different from snapshot window
             tabActions: [TabAction(pattern: "github\\.com", kind: .focus)]
         )
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .createWindow(_, let windowName, _, _) = result else {
+        guard case let .createWindow(_, windowName, _, _) = result else {
             return XCTFail("Expected .createWindow, got \(result)")
         }
         XCTAssertEqual(windowName, "Work")
@@ -322,11 +321,11 @@ final class RouteResolverTests: XCTestCase {
 
     func testNoWindowTargetAndNoTabMatchReturnsOpenWithWorkspace() {
         let snapshot = makeSnapshot(windows: [])
-        let action = makeAction(windowTarget: nil)  // no tab actions, no window target
+        let action = makeAction(windowTarget: nil) // no tab actions, no window target
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .openWithWorkspace(let bundleId, let url, _) = result else {
+        guard case let .openWithWorkspace(bundleId, url, _) = result else {
             return XCTFail("Expected .openWithWorkspace, got \(result)")
         }
         XCTAssertEqual(bundleId, chromeBundleId)
@@ -373,7 +372,7 @@ final class RouteResolverTests: XCTestCase {
         let action = makeAction(
             tabActions: [
                 TabAction(pattern: "[invalid(regex", kind: .focus),
-                TabAction(pattern: "github\\.com", kind: .use)  // valid, should match
+                TabAction(pattern: "github\\.com", kind: .use), // valid, should match
             ]
         )
 
@@ -395,7 +394,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .createWindow(_, let windowName, _, _) = result else {
+        guard case let .createWindow(_, windowName, _, _) = result else {
             return XCTFail("Expected .createWindow for empty snapshot, got \(result)")
         }
         XCTAssertEqual(windowName, "Work")
@@ -406,7 +405,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: nil, isChromeBasedBrowser: true)
 
-        guard case .createWindow(_, let windowName, _, _) = result else {
+        guard case let .createWindow(_, windowName, _, _) = result else {
             return XCTFail("Expected .createWindow for nil snapshot, got \(result)")
         }
         XCTAssertEqual(windowName, "Work")
@@ -429,7 +428,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .openInWindow(_, let windowId, _, _) = result else {
+        guard case let .openInWindow(_, windowId, _, _) = result else {
             return XCTFail("Expected .openInWindow even for empty window, got \(result)")
         }
         XCTAssertEqual(windowId, "w1")
@@ -446,7 +445,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .focusTab(_, _, _, let matchedRule) = result else {
+        guard case let .focusTab(_, _, _, matchedRule) = result else {
             return XCTFail("Expected .focusTab, got \(result)")
         }
         XCTAssertEqual(matchedRule, "my-special-rule")
@@ -467,9 +466,9 @@ final class RouteResolverTests: XCTestCase {
                 "tabCount": 2,
                 "tabs": [
                     ["id": "t1", "index": 1, "url": "https://example.com", "title": "Example", "active": true],
-                    ["id": "t2", "index": 2, "url": "https://github.com", "title": "GitHub", "active": false]
-                ]
-            ]
+                    ["id": "t2", "index": 2, "url": "https://github.com", "title": "GitHub", "active": false],
+                ],
+            ],
         ]
 
         let snapshot = BrowserSnapshot.from(rawWindows)
@@ -485,13 +484,13 @@ final class RouteResolverTests: XCTestCase {
 
     func testBrowserSnapshotFromSkipsMalformedWindows() {
         let rawWindows: [NSDictionary] = [
-            ["id": "w1"],  // missing required fields
+            ["id": "w1"], // missing required fields
             [
                 "id": "w2",
                 "givenName": "Good",
                 "tabCount": 0,
-                "tabs": [] as [[String: Any]]
-            ]
+                "tabs": [] as [[String: Any]],
+            ],
         ]
 
         let snapshot = BrowserSnapshot.from(rawWindows)
@@ -510,9 +509,9 @@ final class RouteResolverTests: XCTestCase {
         let tab1 = makeTab(id: "t1", index: 1, url: "https://a.com")
         let tab2 = makeTab(id: "t2", index: 2, url: "https://b.com")
         let tab3 = makeTab(id: "t3", index: 1, url: "https://c.com")
-        let w1 = makeWindow(id: "w1", name: "First", tabs: [tab1, tab2])
-        let w2 = makeWindow(id: "w2", name: "Second", tabs: [tab3])
-        let snapshot = makeSnapshot(windows: [w1, w2])
+        let window1 = makeWindow(id: "w1", name: "First", tabs: [tab1, tab2])
+        let window2 = makeWindow(id: "w2", name: "Second", tabs: [tab3])
+        let snapshot = makeSnapshot(windows: [window1, window2])
 
         let flat = snapshot.flatTabs()
         XCTAssertEqual(flat.count, 3)
@@ -529,7 +528,7 @@ final class RouteResolverTests: XCTestCase {
         let window = makeWindow(id: "w1", name: "MyWindow")
         let encoder = JSONEncoder()
         let data = try encoder.encode(window)
-        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
 
         XCTAssertEqual(json["givenName"] as? String, "MyWindow")
         XCTAssertNil(json["name"])
@@ -548,7 +547,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .focusTab(_, _, let tabIndex, _) = result else {
+        guard case let .focusTab(_, _, tabIndex, _) = result else {
             return XCTFail("Expected .focusTab, got \(result)")
         }
         XCTAssertEqual(tabIndex, 1)
@@ -565,7 +564,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .openInWindow(_, let windowId, _, _) = result else {
+        guard case let .openInWindow(_, windowId, _, _) = result else {
             return XCTFail("Expected .openInWindow, got \(result)")
         }
         XCTAssertEqual(windowId, "w1")
@@ -584,7 +583,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .focusTab(_, let windowId, _, _) = result else {
+        guard case let .focusTab(_, windowId, _, _) = result else {
             return XCTFail("Expected .focusTab, got \(result)")
         }
         XCTAssertEqual(windowId, "w1")
@@ -603,7 +602,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .focusTab(_, let windowId, _, _) = result else {
+        guard case let .focusTab(_, windowId, _, _) = result else {
             return XCTFail("Expected .focusTab, got \(result)")
         }
         XCTAssertEqual(windowId, "w1")
@@ -669,7 +668,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .navigateTab(_, _, _, _, let url, _) = result else {
+        guard case let .navigateTab(_, _, _, _, url, _) = result else {
             return XCTFail("Expected .navigateTab, got \(result)")
         }
         // url payload must come from the action's routeURL, not the matched tab's URL
@@ -688,7 +687,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .openInWindow(_, _, let url, _) = result else {
+        guard case let .openInWindow(_, _, url, _) = result else {
             return XCTFail("Expected .openInWindow, got \(result)")
         }
         XCTAssertEqual(url, "https://github.com/acme/new-feature")
@@ -701,7 +700,7 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
-        guard case .createWindow(_, let windowName, _, _) = result else {
+        guard case let .createWindow(_, windowName, _, _) = result else {
             return XCTFail("Expected .createWindow, got \(result)")
         }
         XCTAssertEqual(windowName, "Work")

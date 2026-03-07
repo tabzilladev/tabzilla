@@ -29,9 +29,17 @@ struct Config: Codable {
         let focusTab: String?
         let followTab: String?
 
-        init(name: String? = nil, url: String? = nil, sourceApp: String? = nil,
-             sourceWindowTitle: String? = nil, browser: String? = nil, window: String? = nil,
-             useTab: String? = nil, focusTab: String? = nil, followTab: String? = nil) {
+        init(
+            name: String? = nil,
+            url: String? = nil,
+            sourceApp: String? = nil,
+            sourceWindowTitle: String? = nil,
+            browser: String? = nil,
+            window: String? = nil,
+            useTab: String? = nil,
+            focusTab: String? = nil,
+            followTab: String? = nil
+        ) {
             self.name = name
             self.url = url
             self.sourceApp = sourceApp
@@ -60,16 +68,14 @@ enum ConfigurationManager {
         return [
             "\(home)/.config/tabz/config.yaml",
             "\(home)/Library/Application Support/Tabzilla/config.yaml",
-            "\(home)/.tabz.yaml"
+            "\(home)/.tabz.yaml",
         ]
     }
 
     /// Find the first existing config file path
     static func findConfigPath() -> String? {
-        for path in searchPaths {
-            if FileManager.default.fileExists(atPath: path) {
-                return path
-            }
+        for path in searchPaths where FileManager.default.fileExists(atPath: path) {
+            return path
         }
         return nil
     }
@@ -85,7 +91,7 @@ enum ConfigurationManager {
         cachedFingerprint = fingerprint
 
         if let configPath = path {
-            return (try loadConfig(from: configPath), changed)
+            return try (loadConfig(from: configPath), changed)
         }
 
         // No config file found - return in-memory defaults
@@ -107,7 +113,6 @@ enum ConfigurationManager {
         }
         return try loadConfig().config
     }
-
 }
 
 // MARK: - Config Freshness
@@ -125,5 +130,3 @@ struct ConfigFingerprint: Equatable {
         return ConfigFingerprint(path: path, modificationDate: mtime, inode: inode)
     }
 }
-
-

@@ -13,7 +13,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface ChromeTabInfo : NSObject
 @property (nonatomic, copy) NSString *windowId;
 @property (nonatomic, copy) NSString *tabId;
-@property (nonatomic, assign) NSInteger tabIndex;     // Used for activeTabIndex
+@property (nonatomic, assign) NSInteger tabIndex;  // Used for activeTabIndex
 @property (nonatomic, copy) NSString *windowName;
 @property (nonatomic, copy) NSString *tabURL;
 @end
@@ -42,9 +42,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// @param error Error output
 /// @return YES on success
 - (BOOL)openURL:(NSString *)urlString
-  inWindowWithId:(NSString *)windowId
-       bundleId:(NSString *)bundleId
-          error:(NSError **)error NS_SWIFT_NOTHROW;
+    inWindowWithId:(NSString *)windowId
+          bundleId:(NSString *)bundleId
+             error:(NSError **)error NS_SWIFT_NOTHROW;
 
 /// Fetch all tabs for a browser (for caching during multi-action routing)
 /// @param bundleId The browser bundle ID
@@ -66,9 +66,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// @param windowId Window ID from ChromeTabInfo
 /// @param tabIndex Tab index (1-based, for activeTabIndex)
 /// @param bundleId The browser bundle ID
-- (void)focusTabWithWindowId:(NSString *)windowId
-                    tabIndex:(NSInteger)tabIndex
-                    bundleId:(NSString *)bundleId;
+- (void)focusTabWithWindowId:(NSString *)windowId tabIndex:(NSInteger)tabIndex bundleId:(NSString *)bundleId;
 
 /// Navigate a specific tab to a new URL
 /// @param windowId Window ID from ChromeTabInfo

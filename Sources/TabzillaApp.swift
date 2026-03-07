@@ -1,6 +1,6 @@
-import SwiftUI
 import AppKit
 import os
+import SwiftUI
 
 private let logger = Logger(subsystem: "dev.tabzilla.Tabzilla", category: "app")
 
@@ -15,7 +15,7 @@ struct TabzillaApp {
         let hasUserArgs = args.count > 1 && !args[1].starts(with: "-NS") && !args[1].starts(with: "-Apple")
         if hasUserArgs {
             CLI.main()
-        } else if args.count == 1 && isatty(STDIN_FILENO) != 0 {
+        } else if args.count == 1, isatty(STDIN_FILENO) != 0 {
             // No arguments from an interactive terminal: print usage and exit.
             // When launched via `open`, Launch Services, or launchd, stdin is not a tty,
             // so daemon mode is unaffected.
@@ -90,7 +90,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 logger.info("Configuration loaded successfully")
             }
         } catch {
-            logger.error("Failed to load configuration: \(error)")
+            logger.error("Failed to load configuration: \(error, privacy: .public)")
         }
         return ruleEngine
     }
@@ -117,9 +117,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         sigtermSource = termSource
     }
 
-    @objc private func handleGetURLEvent(_ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor) {
+    @objc private func handleGetURLEvent(
+        _ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor
+    ) {
         guard let urlString = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
-              let url = URL(string: urlString) else {
+              let url = URL(string: urlString)
+        else {
             logger.error("Failed to parse URL from Apple Event")
             return
         }
@@ -134,12 +137,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             sourceWindowTitle: sourceWindowTitle
         )
 
-        logger.info("Received URL: \(url, privacy: .private), sourceApp: \(sourceApp ?? "unknown", privacy: .public), sourceWindowTitle: \(sourceWindowTitle ?? "unknown", privacy: .private)")
+        let app = sourceApp ?? "unknown"
+        let title = sourceWindowTitle ?? "unknown"
+        logger.info("Received URL: \(url, privacy: .private) app=\(app, privacy: .public) title=\(title, privacy: .private)")
 
         routeURL(request: request)
     }
 
-    @objc private func handleOpenDocumentsEvent(_ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor) {
+    @objc private func handleOpenDocumentsEvent(
+        _ event: NSAppleEventDescriptor, withReplyEvent reply: NSAppleEventDescriptor
+    ) {
         guard let listDescriptor = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject)) else {
             logger.error("Failed to get document list from Apple Event")
             return
@@ -152,8 +159,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Iterate through all documents in the list
         let itemCount = listDescriptor.numberOfItems
         guard itemCount > 0 else { return }
-        for i in 1...itemCount {
-            guard let itemDescriptor = listDescriptor.atIndex(i) else {
+        for index in 1...itemCount {
+            guard let itemDescriptor = listDescriptor.atIndex(index) else {
                 continue
             }
 
@@ -162,7 +169,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             // Try coercing to file URL
             if let fileURLDescriptor = itemDescriptor.coerce(toDescriptorType: typeFileURL),
-               let urlString = fileURLDescriptor.stringValue {
+               let urlString = fileURLDescriptor.stringValue
+            {
                 url = URL(string: urlString)
             }
 
@@ -170,13 +178,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if url == nil {
                 let data = itemDescriptor.data
                 var isStale = false
-                if let bookmarkURL = try? URL(resolvingBookmarkData: data, options: [], relativeTo: nil, bookmarkDataIsStale: &isStale) {
+                if let bookmarkURL = try? URL(
+                    resolvingBookmarkData: data, options: [], relativeTo: nil, bookmarkDataIsStale: &isStale
+                ) {
                     url = bookmarkURL
                 }
             }
 
             guard let fileURL = url else {
-                logger.error("Failed to parse file URL at index \(i)")
+                logger.error("Failed to parse file URL at index \(index, privacy: .public)")
                 continue
             }
 
@@ -192,7 +202,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 sourceWindowTitle: sourceWindowTitle
             )
 
-            logger.info("Received file: \(fileURL, privacy: .private), sourceApp: \(sourceApp ?? "unknown", privacy: .public), sourceWindowTitle: \(sourceWindowTitle ?? "unknown", privacy: .private)")
+            let app = sourceApp ?? "unknown"
+            let title = sourceWindowTitle ?? "unknown"
+            logger.info("file: \(fileURL, privacy: .private) app=\(app, privacy: .public) title=\(title, privacy: .private)")
 
             routeURL(request: request)
         }
@@ -204,21 +216,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func openFileWithDefaultBrowser(_ fileURL: URL) {
-        guard let config = config else {
-            logger.info("No config, falling back to NSWorkspace.open for \(fileURL.lastPathComponent, privacy: .private)")
+        guard let config else {
+            logger
+                .info("No config, falling back to NSWorkspace.open for \(fileURL.lastPathComponent, privacy: .private)")
             NSWorkspace.shared.open(fileURL)
             return
         }
 
         let bundleId = config.defaults.browser
         guard let browserURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) else {
-            logger.error("Default browser \(bundleId) not found, falling back for \(fileURL.lastPathComponent, privacy: .private)")
+            let filename = fileURL.lastPathComponent
+            logger.error("Browser \(bundleId, privacy: .public) not found")
+            logger.error("Falling back for \(filename, privacy: .private)")
             NSWorkspace.shared.open(fileURL)
             return
         }
 
-        NSWorkspace.shared.open([fileURL], withApplicationAt: browserURL, configuration: NSWorkspace.OpenConfiguration())
-        logger.info("Delegated \(fileURL.lastPathComponent, privacy: .private) to \(bundleId)")
+        NSWorkspace.shared.open(
+            [fileURL], withApplicationAt: browserURL, configuration: NSWorkspace.OpenConfiguration()
+        )
+        logger.info("Delegated \(fileURL.lastPathComponent, privacy: .private) to \(bundleId, privacy: .public)")
     }
 
     private func getSourceApp(from event: NSAppleEventDescriptor) -> String? {
@@ -259,9 +276,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if result == .success, let window = focusedWindow {
             var titleValue: CFTypeRef?
-            // Force-cast is safe: AXUIElementCopyAttributeValue with kAXFocusedWindowAttribute
-            // always returns an AXUIElement per the Accessibility API contract.
-            let titleResult = AXUIElementCopyAttributeValue(window as! AXUIElement, kAXTitleAttribute as CFString, &titleValue)
+            // Force-cast: AXUIElementCopyAttributeValue always returns AXUIElement per Accessibility API contract.
+            // swiftlint:disable:next force_cast
+            let titleResult = AXUIElementCopyAttributeValue(
+                window as! AXUIElement, kAXTitleAttribute as CFString, &titleValue
+            )
 
             if titleResult == .success, let title = titleValue as? String {
                 return title
@@ -292,12 +311,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let action = engine.route(request: request)
-        logger.info("Route action: browser=\(action.browser, privacy: .public), window=\(action.windowTarget ?? "none", privacy: .public)")
+        let win = action.windowTarget ?? "none"
+        logger.info("Route action: browser=\(action.browser, privacy: .public) window=\(win, privacy: .public)")
 
         do {
             try exec.execute(action: action)
         } catch {
-            logger.error("Failed to execute action: \(error)")
+            logger.error("Failed to execute action: \(error, privacy: .public)")
             openURLInDefaultBrowser(request.url)
         }
     }
@@ -317,7 +337,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             try FileManager.default.createDirectory(atPath: pidDir, withIntermediateDirectories: true)
             try "\(pid)".write(toFile: pidFilePath, atomically: true, encoding: .utf8)
         } catch {
-            logger.error("Failed to write PID file: \(error)")
+            logger.error("Failed to write PID file: \(error, privacy: .public)")
         }
     }
 

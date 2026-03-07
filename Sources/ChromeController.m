@@ -13,9 +13,7 @@
 static os_log_t ChromeLogger(void) {
     static os_log_t log;
     static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        log = os_log_create("dev.tabzilla.Tabzilla", "chrome");
-    });
+    dispatch_once(&onceToken, ^{ log = os_log_create("dev.tabzilla.Tabzilla", "chrome"); });
     return log;
 }
 
@@ -29,9 +27,7 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
 + (instancetype)shared {
     static ChromeController *instance = nil;
     static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        instance = [[ChromeController alloc] init];
-    });
+    dispatch_once(&onceToken, ^{ instance = [[ChromeController alloc] init]; });
     return instance;
 }
 
@@ -46,13 +42,12 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
        inWindow:(NSString *)windowName
        bundleId:(NSString *)bundleId
           error:(NSError **)error {
-
     ChromeApplication *chrome = [self chromeAppForBundleId:bundleId];
     if (!chrome) {
         if (error) {
             *error = [NSError errorWithDomain:TabzillaErrorDomain
                                          code:1
-                                     userInfo:@{NSLocalizedDescriptionKey: @"Chrome not available"}];
+                                     userInfo:@{NSLocalizedDescriptionKey : @"Chrome not available"}];
         }
         return NO;
     }
@@ -86,9 +81,10 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
             [newTab setURL:urlString];
         } @catch (NSException *exception) {
             if (error) {
-                *error = [NSError errorWithDomain:TabzillaErrorDomain
-                                             code:3
-                                         userInfo:@{NSLocalizedDescriptionKey: exception.reason ?: @"Scripting Bridge error"}];
+                *error = [NSError
+                    errorWithDomain:TabzillaErrorDomain
+                               code:3
+                           userInfo:@{NSLocalizedDescriptionKey : exception.reason ?: @"Scripting Bridge error"}];
             }
             return NO;
         }
@@ -104,9 +100,10 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
             activeTab.URL = urlString;
         } @catch (NSException *exception) {
             if (error) {
-                *error = [NSError errorWithDomain:TabzillaErrorDomain
-                                             code:3
-                                         userInfo:@{NSLocalizedDescriptionKey: exception.reason ?: @"Scripting Bridge error"}];
+                *error = [NSError
+                    errorWithDomain:TabzillaErrorDomain
+                               code:3
+                           userInfo:@{NSLocalizedDescriptionKey : exception.reason ?: @"Scripting Bridge error"}];
             }
             return NO;
         }
@@ -118,16 +115,15 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
 }
 
 - (BOOL)openURL:(NSString *)urlString
-  inWindowWithId:(NSString *)windowId
-       bundleId:(NSString *)bundleId
-          error:(NSError **)error {
-
+    inWindowWithId:(NSString *)windowId
+          bundleId:(NSString *)bundleId
+             error:(NSError **)error {
     ChromeApplication *chrome = [self chromeAppForBundleId:bundleId];
     if (!chrome) {
         if (error) {
             *error = [NSError errorWithDomain:TabzillaErrorDomain
                                          code:1
-                                     userInfo:@{NSLocalizedDescriptionKey: @"Chrome not available"}];
+                                     userInfo:@{NSLocalizedDescriptionKey : @"Chrome not available"}];
         }
         return NO;
     }
@@ -138,7 +134,7 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
         if (error) {
             *error = [NSError errorWithDomain:TabzillaErrorDomain
                                          code:2
-                                     userInfo:@{NSLocalizedDescriptionKey: @"Window not found"}];
+                                     userInfo:@{NSLocalizedDescriptionKey : @"Window not found"}];
         }
         return NO;
     }
@@ -154,9 +150,10 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
         [newTab setURL:urlString];
     } @catch (NSException *exception) {
         if (error) {
-            *error = [NSError errorWithDomain:TabzillaErrorDomain
-                                         code:3
-                                     userInfo:@{NSLocalizedDescriptionKey: exception.reason ?: @"Scripting Bridge error"}];
+            *error =
+                [NSError errorWithDomain:TabzillaErrorDomain
+                                    code:3
+                                userInfo:@{NSLocalizedDescriptionKey : exception.reason ?: @"Scripting Bridge error"}];
         }
         return NO;
     }
@@ -166,10 +163,12 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
 
 - (nullable NSArray<ChromeTabInfo *> *)getAllTabsForBundleId:(NSString *)bundleId {
     ChromeApplication *chrome = [self chromeAppForBundleId:bundleId];
-    if (!chrome) return nil;
+    if (!chrome)
+        return nil;
 
     // Check if browser is running
-    if (![chrome isRunning]) return @[];
+    if (![chrome isRunning])
+        return @[];
 
     NSMutableArray<ChromeTabInfo *> *allTabs = [NSMutableArray array];
 
@@ -183,7 +182,8 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
     for (ChromeWindow *window in windows) {
         NSString *windowId = windowIds[windowIndex];
         NSString *windowName = windowNames[windowIndex];
-        if ([windowName isEqual:[NSNull null]]) windowName = @"";
+        if ([windowName isEqual:[NSNull null]])
+            windowName = @"";
 
         SBElementArray<ChromeTab *> *tabs = window.tabs;
         NSArray *tabIds = [tabs valueForKey:@"id"];
@@ -209,11 +209,8 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
                                    preferredWindow:(nullable NSString *)preferredWindow
                                           bundleId:(NSString *)bundleId
                                       fromTabCache:(nullable NSArray<ChromeTabInfo *> *)cachedTabs {
-
     NSError *regexError = nil;
-    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:pattern
-                                                                           options:0
-                                                                             error:&regexError];
+    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:pattern options:0 error:&regexError];
     if (regexError) {
         os_log_error(ChromeLogger(), "ChromeController: Invalid regex pattern: %{private}@", pattern);
         return nil;
@@ -221,7 +218,8 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
 
     // Use cached tabs if provided, otherwise fetch fresh
     NSArray<ChromeTabInfo *> *tabs = cachedTabs ?: [self getAllTabsForBundleId:bundleId];
-    if (!tabs) return nil;
+    if (!tabs)
+        return nil;
 
     // Early termination optimization: if preferredWindow is specified,
     // search that window first and return immediately on match
@@ -251,16 +249,15 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
     return nil;
 }
 
-- (void)focusTabWithWindowId:(NSString *)windowId
-                    tabIndex:(NSInteger)tabIndex
-                    bundleId:(NSString *)bundleId {
-
+- (void)focusTabWithWindowId:(NSString *)windowId tabIndex:(NSInteger)tabIndex bundleId:(NSString *)bundleId {
     ChromeApplication *chrome = [self chromeAppForBundleId:bundleId];
-    if (!chrome) return;
+    if (!chrome)
+        return;
 
     // Get window by ID for stable reference
     ChromeWindow *window = (ChromeWindow *)[[chrome windows] objectWithID:windowId];
-    if (!window) return;
+    if (!window)
+        return;
 
     // Set active tab and bring window to front
     [window setActiveTabIndex:tabIndex];
@@ -272,27 +269,31 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
                           tabId:(NSString *)tabId
                           toURL:(NSString *)urlString
                        bundleId:(NSString *)bundleId {
-
     ChromeApplication *chrome = [self chromeAppForBundleId:bundleId];
-    if (!chrome) return;
+    if (!chrome)
+        return;
 
     // Get window by ID for stable reference
     ChromeWindow *window = (ChromeWindow *)[[chrome windows] objectWithID:windowId];
-    if (!window) return;
+    if (!window)
+        return;
 
     // Get tab by ID for stable reference
     ChromeTab *tab = (ChromeTab *)[[window tabs] objectWithID:tabId];
-    if (!tab) return;
+    if (!tab)
+        return;
 
     [tab setURL:urlString];
 }
 
 - (nullable NSArray<NSDictionary *> *)getAllWindowsForBundleId:(NSString *)bundleId {
     ChromeApplication *chrome = [self chromeAppForBundleId:bundleId];
-    if (!chrome) return nil;
+    if (!chrome)
+        return nil;
 
     // Check if browser is running
-    if (![chrome isRunning]) return @[];
+    if (![chrome isRunning])
+        return @[];
 
     NSMutableArray<NSDictionary *> *result = [NSMutableArray array];
 
@@ -306,7 +307,8 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
     for (ChromeWindow *window in windows) {
         NSString *windowId = windowIds[windowIndex];
         NSString *givenName = givenNames[windowIndex];
-        if ([givenName isEqual:[NSNull null]]) givenName = @"";
+        if ([givenName isEqual:[NSNull null]])
+            givenName = @"";
         NSInteger activeTabIdx = [activeTabIndices[windowIndex] integerValue];
 
         // Batch fetch all tab properties for this window
@@ -320,24 +322,26 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
             NSString *tabId = tabIds[tabIndex];
             NSString *tabURL = tabURLs[tabIndex];
             NSString *tabTitle = tabTitles[tabIndex];
-            if ([tabURL isEqual:[NSNull null]]) tabURL = @"";
-            if ([tabTitle isEqual:[NSNull null]]) tabTitle = @"";
+            if ([tabURL isEqual:[NSNull null]])
+                tabURL = @"";
+            if ([tabTitle isEqual:[NSNull null]])
+                tabTitle = @"";
             BOOL isActive = (tabIndex + 1 == activeTabIdx);
 
             [tabs addObject:@{
-                @"id": tabId ?: @"",
-                @"index": @(tabIndex + 1),
-                @"url": tabURL,
-                @"title": tabTitle,
-                @"active": @(isActive)
+                @"id" : tabId ?: @"",
+                @"index" : @(tabIndex + 1),
+                @"url" : tabURL,
+                @"title" : tabTitle,
+                @"active" : @(isActive)
             }];
         }
 
         [result addObject:@{
-            @"id": windowId ?: @"",
-            @"givenName": givenName,
-            @"tabCount": @(tabs.count),
-            @"tabs": tabs
+            @"id" : windowId ?: @"",
+            @"givenName" : givenName,
+            @"tabCount" : @(tabs.count),
+            @"tabs" : tabs
         }];
         windowIndex++;
     }

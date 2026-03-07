@@ -62,6 +62,25 @@ distclean: clean ## Deep clean: also removes Xcode DerivedData (requires re-fetc
 	@rm -rf "$(DERIVED_DATA)"/$(APP_NAME)-*
 	@echo "Deep clean complete"
 
+##@ Lint & Format
+
+SWIFT_SOURCES := Sources Tests
+OBJC_M_SOURCES := $(shell find Sources -name '*.m')
+OBJC_H_SOURCES := $(shell find Sources -name '*.h' | grep -v Chrome.h)
+
+.PHONY: lint
+lint: ## Lint Swift (swiftlint) and Objective-C (clang-format --dry-run)
+	@swiftlint lint --quiet
+	@xcrun clang-format --dry-run --Werror $(OBJC_M_SOURCES)
+	@for f in $(OBJC_H_SOURCES); do xcrun clang-format --dry-run --Werror --assume-filename=x.m < "$$f" > /dev/null || exit 1; done
+	@echo "clang-format: no issues"
+
+.PHONY: format
+format: ## Format Swift (swiftformat) and Objective-C (clang-format -i)
+	@swiftformat $(SWIFT_SOURCES)
+	@xcrun clang-format -i $(OBJC_M_SOURCES)
+	@for f in $(OBJC_H_SOURCES); do xcrun clang-format --assume-filename=x.m < "$$f" > "$$f.tmp" && mv "$$f.tmp" "$$f"; done
+
 ##@ Install
 
 .PHONY: install
