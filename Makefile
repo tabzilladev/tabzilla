@@ -27,7 +27,7 @@ build: ## Build universal release app bundle (arm64 + x86_64)
 		-destination 'generic/platform=macOS' \
 		ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
 		-quiet
-	@echo "Build complete"
+	@echo "Release build complete: $(XCODE_BUILD_APP)"
 
 # Build debug app bundle (used as prerequisite by test-url)
 .PHONY: debug
@@ -38,7 +38,7 @@ debug: ## Build debug app bundle for current arch only (see: uname -m)
 		-configuration Debug \
 		-destination 'platform=macOS,arch=$(shell uname -m)' \
 		-quiet
-	@echo "Debug build complete"
+	@echo "Debug build complete: $(XCODE_DEBUG_APP)"
 
 .PHONY: test
 test: ## Run unit tests via SPM
