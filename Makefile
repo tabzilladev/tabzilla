@@ -185,9 +185,10 @@ ci-watch: require-gh ## Watch the most recent CI run until it completes
 	@echo "View on GitHub: $(REPO_URL)/actions"
 
 .PHONY: release
-release: require-gh ## Bump, tag, push, and watch CI; usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]
+release: ## Bump, tag, push, and watch CI; usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]
 	@test -n "$(V)" || (echo "Usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]" && exit 1)
-	@scripts/release.sh "$(V)" $(if $(filter 1,$(DRY_RUN)),--dry-run,) $(if $(filter 1,$(FORCE)),--force,) $(if $(filter 1,$(NOWATCH)),--no-watch,)
+	@scripts/release.sh "$(V)" $(if $(filter 1,$(DRY_RUN)),--dry-run,) $(if $(filter 1,$(FORCE)),--force,)
+	$(if $(filter 1,$(DRY_RUN)),,$(if $(filter 1,$(NOWATCH)),,@$(MAKE) ci-watch))
 
 .PHONY: release-status
 release-status: require-gh ## Show the latest GitHub release

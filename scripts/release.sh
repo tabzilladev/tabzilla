@@ -1,32 +1,30 @@
 #!/usr/bin/env bash
-# release.sh — validate, bump, commit, tag, push, and watch CI
-# Usage: scripts/release.sh <version> [--dry-run] [--force] [--no-watch]
+# release.sh — validate, bump, commit, tag, and push
+# Usage: scripts/release.sh <version> [--dry-run] [--force]
 
 set -euo pipefail
 
 VERSION=""
 DRY_RUN=0
 FORCE=0
-NO_WATCH=0
 
 for arg in "$@"; do
   case "$arg" in
     --dry-run)  DRY_RUN=1 ;;
     --force)    FORCE=1 ;;
-    --no-watch) NO_WATCH=1 ;;
-    -*)         echo "Usage: $0 <version> [--dry-run] [--force] [--no-watch]" >&2; exit 1 ;;
+    -*)         echo "Usage: $0 <version> [--dry-run] [--force]" >&2; exit 1 ;;
     *)
       if [[ -z "$VERSION" ]]; then
         VERSION="$arg"
       else
-        echo "Usage: $0 <version> [--dry-run] [--force] [--no-watch]" >&2; exit 1
+        echo "Usage: $0 <version> [--dry-run] [--force]" >&2; exit 1
       fi
       ;;
   esac
 done
 
 if [[ -z "$VERSION" ]]; then
-  echo "Usage: $0 <version> [--dry-run] [--force] [--no-watch]" >&2
+  echo "Usage: $0 <version> [--dry-run] [--force]" >&2
   exit 1
 fi
 
@@ -112,13 +110,10 @@ if [[ $DRY_RUN -eq 1 ]]; then
   fi
   echo ""
   echo "  GitHub (triggered by tag push):"
-  echo "    5. CI: patch version from tag, run tests, build release app bundle"
+  echo "    5. CI: run tests, build release app bundle"
   echo "    6. Package Tabzilla.app → Tabzilla-$VERSION-macos.zip (with SHA256)"
   echo "    7. Create GitHub Release$(if [[ $FORCE -eq 1 ]]; then echo " (update existing if present)"; fi) with zip attached"
   echo "    8. Update Homebrew Cask in tabzilladev/homebrew-tap"
-  echo ""
-  echo "  Monitor:"
-  echo "    9. Watch CI workflow until completion (or failure)"
   echo ""
   echo "No changes made."
   exit 0
@@ -145,13 +140,3 @@ echo "Tagging $TAG..."
 git -C "$REPO_ROOT" tag "$TAG"
 git -C "$REPO_ROOT" push origin "$TAG"
 echo "Pushed $TAG — CI release workflow triggered"
-
-REPO_URL="$(gh repo view --json url -q .url)"
-ACTIONS_URL="$REPO_URL/actions"
-echo "View on GitHub: $ACTIONS_URL"
-
-# Step: watch CI
-if [[ $NO_WATCH -eq 0 ]]; then
-  echo "Watching CI..."
-  gh run watch --exit-status
-fi
