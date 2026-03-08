@@ -181,8 +181,10 @@ ci-status: require-gh ## Show recent CI runs for the current branch
 
 .PHONY: ci-watch
 ci-watch: require-gh ## Watch the most recent CI run until it completes
-	@gh run watch --exit-status
-	@echo "View on GitHub: $(REPO_URL)/actions"
+	@sleep 3
+	@RUN_ID=$$(gh run list --limit=1 --json databaseId -q '.[0].databaseId'); \
+	echo "CI run: $(REPO_URL)/actions/runs/$$RUN_ID"; \
+	gh run watch "$$RUN_ID" --exit-status
 
 .PHONY: release
 release: ## Bump, tag, push, and watch CI; usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]
