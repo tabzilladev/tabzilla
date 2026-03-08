@@ -166,14 +166,13 @@ package: build ## Zip release app bundle and print SHA256; usage: make package V
 	echo "zip=build/$$ZIP_NAME"; \
 	echo "sha256=$$SHA256"
 
-.PHONY: release
-release: require-gh ## Bump, tag, push, and watch CI; usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]
-	@test -n "$(V)" || (echo "Usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]" && exit 1)
-	@scripts/release.sh "$(V)" $(if $(filter 1,$(DRY_RUN)),--dry-run,) $(if $(filter 1,$(FORCE)),--force,) $(if $(filter 1,$(NOWATCH)),--no-watch,)
-
-.PHONY: release-status
-release-status: require-gh ## Show the latest GitHub release
-	@gh release view
+.PHONY: ci-trigger
+ci-trigger: require-gh ## Trigger CI workflow and watch; usage: make ci-trigger [NOWATCH=1]
+	@gh workflow run ci
+	@sleep 3
+	@RUN_ID=$$(gh run list --workflow=ci --limit=1 --json databaseId -q '.[0].databaseId'); \
+	echo "CI run: $(REPO_URL)/actions/runs/$$RUN_ID"; \
+	$(if $(filter 1,$(NOWATCH)),true,gh run watch "$$RUN_ID" --exit-status)
 
 .PHONY: ci-status
 ci-status: require-gh ## Show recent CI runs for the current branch
@@ -184,6 +183,15 @@ ci-status: require-gh ## Show recent CI runs for the current branch
 ci-watch: require-gh ## Watch the most recent CI run until it completes
 	@gh run watch --exit-status
 	@echo "View on GitHub: $(REPO_URL)/actions"
+
+.PHONY: release
+release: require-gh ## Bump, tag, push, and watch CI; usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]
+	@test -n "$(V)" || (echo "Usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]" && exit 1)
+	@scripts/release.sh "$(V)" $(if $(filter 1,$(DRY_RUN)),--dry-run,) $(if $(filter 1,$(FORCE)),--force,) $(if $(filter 1,$(NOWATCH)),--no-watch,)
+
+.PHONY: release-status
+release-status: require-gh ## Show the latest GitHub release
+	@gh release view
 
 ##@ Daemon
 
