@@ -9,17 +9,52 @@ XCODE_BUILD_APP = $(shell find "$(DERIVED_DATA)" -path "*/Tabzilla-*/Build/Produ
 XCODE_DEBUG_APP = $(shell find "$(DERIVED_DATA)" -path "*/Tabzilla-*/Build/Products/Debug/Tabzilla.app" -type d 2>/dev/null | head -1)
 REPO_URL = $(shell gh repo view --json url -q .url)
 
-# Default target
-all: build ## Runs default target: build
+.DEFAULT_GOAL := all
+
+# lint and format-check run last so they don't block build/test during iteration on in-progress code
+.PHONY: all
+all: test build lint format-check ## Runs default targets: test, build, lint, format-check
 
 .PHONY: help
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
 
+# Dependencies
+
+.PHONY: require-xcodebuild
+require-xcodebuild:
+	@command -v xcodebuild >/dev/null 2>&1 || \
+		{ echo "missing: xcodebuild — install Xcode from the App Store"; exit 1; }
+
+.PHONY: require-xcrun
+require-xcrun:
+	@command -v xcrun >/dev/null 2>&1 || \
+		{ echo "missing: xcrun — install Xcode from the App Store"; exit 1; }
+
+.PHONY: require-swift
+require-swift:
+	@command -v swift >/dev/null 2>&1 || \
+		{ echo "missing: swift — install Xcode from the App Store"; exit 1; }
+
+.PHONY: require-swiftlint
+require-swiftlint:
+	@command -v swiftlint >/dev/null 2>&1 || \
+		{ echo "missing: swiftlint — brew install swiftlint"; exit 1; }
+
+.PHONY: require-swiftformat
+require-swiftformat:
+	@command -v swiftformat >/dev/null 2>&1 || \
+		{ echo "missing: swiftformat — brew install swiftformat"; exit 1; }
+
+.PHONY: require-gh
+require-gh:
+	@command -v gh >/dev/null 2>&1 || \
+		{ echo "missing: gh — brew install gh"; exit 1; }
+
 ##@ Build
 
 .PHONY: build
-build: ## Build universal release app bundle (arm64 + x86_64)
+build: require-xcodebuild ## Build universal release app bundle (arm64 + x86_64)
 	@echo "Building $(APP_NAME)..."
 	@xcodebuild -project $(APP_NAME).xcodeproj \
 		-scheme $(APP_NAME) \
@@ -31,7 +66,7 @@ build: ## Build universal release app bundle (arm64 + x86_64)
 
 # Build debug app bundle (used as prerequisite by test-url)
 .PHONY: debug
-debug: ## Build debug app bundle for current arch only (see: uname -m)
+debug: require-xcodebuild ## Build debug app bundle for current arch only (see: uname -m)
 	@echo "Building $(APP_NAME) (debug)..."
 	@xcodebuild -project $(APP_NAME).xcodeproj \
 		-scheme $(APP_NAME) \
@@ -41,7 +76,7 @@ debug: ## Build debug app bundle for current arch only (see: uname -m)
 	@echo "Debug build complete: $(XCODE_DEBUG_APP)"
 
 .PHONY: test
-test: ## Run unit tests via SPM
+test: require-swift ## Run unit tests via SPM
 	@swift test
 
 .PHONY: test-url
@@ -69,14 +104,21 @@ OBJC_M_SOURCES := $(shell find Sources -name '*.m')
 OBJC_H_SOURCES := $(shell find Sources -name '*.h' | grep -v Chrome.h)
 
 .PHONY: lint
-lint: ## Lint Swift (swiftlint) and Objective-C (clang-format --dry-run)
+lint: require-swiftlint require-xcrun ## Lint Swift (swiftlint) and Objective-C (clang-format --dry-run)
 	@swiftlint lint --quiet
+	@echo "swiftlint lint: no issues"
 	@xcrun clang-format --dry-run --Werror $(OBJC_M_SOURCES)
 	@for f in $(OBJC_H_SOURCES); do xcrun clang-format --dry-run --Werror --assume-filename=x.m < "$$f" > /dev/null || exit 1; done
 	@echo "clang-format: no issues"
 
+.PHONY: format-check
+format-check: require-swiftformat require-xcrun ## Check formatting without making changes
+	@swiftformat $(SWIFT_SOURCES) --lint
+	@xcrun clang-format --dry-run --Werror $(OBJC_M_SOURCES)
+	@for f in $(OBJC_H_SOURCES); do xcrun clang-format --dry-run --Werror --assume-filename=x.m < "$$f" > /dev/null || exit 1; done
+
 .PHONY: format
-format: ## Format Swift (swiftformat) and Objective-C (clang-format -i)
+format: require-swiftformat require-xcrun ## Format Swift (swiftformat) and Objective-C (clang-format -i)
 	@swiftformat $(SWIFT_SOURCES)
 	@xcrun clang-format -i $(OBJC_M_SOURCES)
 	@for f in $(OBJC_H_SOURCES); do xcrun clang-format --assume-filename=x.m < "$$f" > "$$f.tmp" && mv "$$f.tmp" "$$f"; done
@@ -114,21 +156,21 @@ set-version: ## Set version across all source files; usage: make set-version V=X
 	@scripts/set-version.sh "$(V)"
 
 .PHONY: release
-release: ## Bump, tag, push, and watch CI; usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]
+release: require-gh ## Bump, tag, push, and watch CI; usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]
 	@test -n "$(V)" || (echo "Usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]" && exit 1)
 	@scripts/release.sh "$(V)" $(if $(filter 1,$(DRY_RUN)),--dry-run,) $(if $(filter 1,$(FORCE)),--force,) $(if $(filter 1,$(NOWATCH)),--no-watch,)
 
 .PHONY: release-status
-release-status: ## Show the latest GitHub release
+release-status: require-gh ## Show the latest GitHub release
 	@gh release view
 
 .PHONY: ci-status
-ci-status: ## Show recent CI runs for the current branch
+ci-status: require-gh ## Show recent CI runs for the current branch
 	@gh run list --branch "$$(git rev-parse --abbrev-ref HEAD)" --limit 5
 	@echo "View on GitHub: $(REPO_URL)/actions"
 
 .PHONY: ci-watch
-ci-watch: ## Watch the most recent CI run until it completes
+ci-watch: require-gh ## Watch the most recent CI run until it completes
 	@gh run watch --exit-status
 	@echo "View on GitHub: $(REPO_URL)/actions"
 
