@@ -19,3 +19,9 @@ jobs:
 
       - name: Verify release build
         run: make build
+
+      - name: Run linters
+        run: make lint
+
+      - name: Verify formatting
+        run: make format-check

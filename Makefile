@@ -155,6 +155,17 @@ set-version: ## Set version across all source files; usage: make set-version V=X
 	@test -n "$(V)" || (echo "Usage: make set-version V=X.Y.Z" && exit 1)
 	@scripts/set-version.sh "$(V)"
 
+.PHONY: package
+package: ## Zip release app bundle and print SHA256; usage: make package VERSION=X.Y.Z
+	@test -n "$(VERSION)" || (echo "Usage: make package VERSION=X.Y.Z" && exit 1)
+	@test -d "$(XCODE_BUILD_APP)" || (echo "Error: release app not found — run 'make build' first"; exit 1)
+	@mkdir -p build
+	@ZIP_NAME="$(APP_NAME)-$(VERSION)-macos.zip"; \
+	zip -r -y "build/$$ZIP_NAME" "$(XCODE_BUILD_APP)" > /dev/null; \
+	SHA256=$$(shasum -a 256 "build/$$ZIP_NAME" | awk '{print $$1}'); \
+	echo "zip=build/$$ZIP_NAME"; \
+	echo "sha256=$$SHA256"
+
 .PHONY: release
 release: require-gh ## Bump, tag, push, and watch CI; usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]
 	@test -n "$(V)" || (echo "Usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]" && exit 1)

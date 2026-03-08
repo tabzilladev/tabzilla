@@ -30,33 +30,21 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_16.2.app
 
       - name: Patch version numbers
-        run: scripts/set-version.sh "${{ steps.extract-version.outputs.version }}"
+        run: make set-version V="${{ steps.extract-version.outputs.version }}"
 
       - name: Run unit tests
         run: make test
 
       - name: Build release app bundle
-        run: |
-          xcodebuild -project Tabzilla.xcodeproj \
-            -scheme Tabzilla \
-            -configuration Release \
-            -derivedDataPath build/DerivedData \
-            -quiet
+        run: make build
 
-      - name: Package app bundle
-        run: |
-          VERSION="${{ steps.extract-version.outputs.version }}"
-          APP_PATH="build/DerivedData/Build/Products/Release/Tabzilla.app"
-          ZIP_NAME="Tabzilla-${VERSION}-macos.zip"
-          zip -r -y "$ZIP_NAME" "$APP_PATH"
-          echo "zip_name=$ZIP_NAME" >> "$GITHUB_ENV"
-
-      - name: Compute SHA256
+      - name: Package app bundle and compute SHA256
         id: checksum
         run: |
-          SHA256=$(shasum -a 256 "${{ env.zip_name }}" | awk '{print $1}')
-          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
-          echo "SHA256: $SHA256"
+          OUT=$(make package VERSION="${{ steps.extract-version.outputs.version }}")
+          echo "$OUT"
+          echo "zip_name=$(echo "$OUT" | grep '^zip=' | cut -d= -f2)" >> "$GITHUB_ENV"
+          echo "sha256=$(echo "$OUT" | grep '^sha256=' | cut -d= -f2)" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
