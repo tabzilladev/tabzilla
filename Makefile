@@ -146,8 +146,8 @@ register: ## Re-register with Launch Services (useful after manual copy)
 
 ##@ Release
 
-.PHONY: version
-version: ## Show current version
+.PHONY: show-version
+show-version: ## Show current version
 	@grep -o 'appVersion = "[^"]*"' Sources/CLI.swift | grep -o '"[^"]*"' | tr -d '"'
 
 .PHONY: set-version
@@ -156,11 +156,11 @@ set-version: ## Set version across all source files; usage: make set-version V=X
 	@scripts/set-version.sh "$(V)"
 
 .PHONY: package
-package: ## Zip release app bundle and print SHA256; usage: make package VERSION=X.Y.Z
-	@test -n "$(VERSION)" || (echo "Usage: make package VERSION=X.Y.Z" && exit 1)
+package: build ## Zip release app bundle and print SHA256; usage: make package V=X.Y.Z
+	@test -n "$(V)" || (echo "Usage: make package V=X.Y.Z" && exit 1)
 	@test -d "$(XCODE_BUILD_APP)" || (echo "Error: release app not found — run 'make build' first"; exit 1)
 	@mkdir -p build
-	@ZIP_NAME="$(APP_NAME)-$(VERSION)-macos.zip"; \
+	@ZIP_NAME="$(APP_NAME)-$(V)-macos.zip"; \
 	zip -r -y "build/$$ZIP_NAME" "$(XCODE_BUILD_APP)" > /dev/null; \
 	SHA256=$$(shasum -a 256 "build/$$ZIP_NAME" | awk '{print $$1}'); \
 	echo "zip=build/$$ZIP_NAME"; \

@@ -29,9 +29,6 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.2.app
 
-      - name: Patch version numbers
-        run: make set-version V="${{ steps.extract-version.outputs.version }}"
-
       - name: Run unit tests
         run: make test
 
@@ -41,7 +38,7 @@ jobs:
       - name: Package app bundle and compute SHA256
         id: checksum
         run: |
-          OUT=$(make package VERSION="${{ steps.extract-version.outputs.version }}")
+          OUT=$(make package V="${{ steps.extract-version.outputs.version }}")
           echo "$OUT"
           echo "zip_name=$(echo "$OUT" | grep '^zip=' | cut -d= -f2)" >> "$GITHUB_ENV"
           echo "sha256=$(echo "$OUT" | grep '^sha256=' | cut -d= -f2)" >> "$GITHUB_OUTPUT"
