@@ -4,7 +4,7 @@ import Foundation
 import os
 
 private let logger = Logger(subsystem: "dev.tabzilla.Tabzilla", category: "cli")
-let appVersion = "0.1.0"
+let appVersion = "0.2.0"
 
 struct CLI: ParsableCommand {
     static var configuration = CommandConfiguration(
