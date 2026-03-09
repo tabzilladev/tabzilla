@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 APP_NAME := Tabzilla
 BUNDLE_ID := dev.tabzilla.Tabzilla
 INSTALL_DIR := /Applications
@@ -15,69 +16,106 @@ REPO_URL = $(shell gh repo view --json url -q .url)
 .PHONY: all
 all: test build lint format-check ## Runs default targets: test, build, lint, format-check
 
+# Self-documenting Makefile inspired by: https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
 .PHONY: help
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
 
 # Dependencies
 
-.PHONY: require-xcodebuild
-require-xcodebuild:
-	@command -v xcodebuild >/dev/null 2>&1 || \
-		{ echo "missing: xcodebuild — install Xcode from the App Store"; exit 1; }
+# Checks everything needed to build, test, lint, and format.
+# Add tool dependencies to the list in the loop below, with hints for how to install.
+.build/build-tools.stamp:
+	@echo "Checking build tools..."
+	@ok=1; \
+	for entry in \
+		"xcodebuild:install Xcode from the App Store" \
+		"xcrun:install Xcode from the App Store" \
+		"swift:install Xcode from the App Store" \
+		"swiftlint:brew install swiftlint" \
+		"swiftformat:brew install swiftformat" \
+	; do \
+		tool=$${entry%%:*}; hint=$${entry#*:}; \
+		if command -v $$tool >/dev/null 2>&1; then \
+			echo "ok: $$tool"; \
+		else \
+			echo "missing: $$tool — $$hint"; \
+			ok=0; \
+		fi; \
+	done; \
+	test $$ok -eq 1 || { echo "Install missing tools and re-run."; exit 1; }
+	@mkdir -p .build
+	@touch $@
 
-.PHONY: require-xcrun
-require-xcrun:
-	@command -v xcrun >/dev/null 2>&1 || \
-		{ echo "missing: xcrun — install Xcode from the App Store"; exit 1; }
+# Checks everything needed to cut a release.
+# Add tool dependencies to the list in the loop below, with hints for how to install.
+.build/release-tools.stamp:
+	@echo "Checking release tools..."
+	@ok=1; \
+	for entry in \
+		"gh:brew install gh" \
+	; do \
+		tool=$${entry%%:*}; hint=$${entry#*:}; \
+		if command -v $$tool >/dev/null 2>&1; then \
+			echo "ok: $$tool"; \
+		else \
+			echo "missing: $$tool — $$hint"; \
+			ok=0; \
+		fi; \
+	done; \
+	test $$ok -eq 1 || { echo "Install missing tools and re-run."; exit 1; }
+	@mkdir -p .build
+	@touch $@
 
-.PHONY: require-swift
-require-swift:
-	@command -v swift >/dev/null 2>&1 || \
-		{ echo "missing: swift — install Xcode from the App Store"; exit 1; }
+.PHONY: build-tools
+build-tools: .build/build-tools.stamp ## Check build/test/lint/format tool dependencies
 
-.PHONY: require-swiftlint
-require-swiftlint:
-	@command -v swiftlint >/dev/null 2>&1 || \
-		{ echo "missing: swiftlint — brew install swiftlint"; exit 1; }
-
-.PHONY: require-swiftformat
-require-swiftformat:
-	@command -v swiftformat >/dev/null 2>&1 || \
-		{ echo "missing: swiftformat — brew install swiftformat"; exit 1; }
-
-.PHONY: require-gh
-require-gh:
-	@command -v gh >/dev/null 2>&1 || \
-		{ echo "missing: gh — brew install gh"; exit 1; }
+.PHONY: release-tools
+release-tools: .build/release-tools.stamp ## Check release tool dependencies
 
 ##@ Build
 
-.PHONY: build
-build: require-xcodebuild ## Build universal release app bundle (arm64 + x86_64)
+# xcodebuild buils use a dynamic directory for build products, so we use stamp
+# files to track when a build is needed.
+XCODEPROJ_SOURCES := $(shell find $(APP_NAME).xcodeproj -type f 2>/dev/null)
+APP_SOURCES       := $(shell find Sources -type f 2>/dev/null)
+TEST_SOURCES      := $(shell find Tests -type f 2>/dev/null)
+
+.build/release.stamp: .build/build-tools.stamp $(XCODEPROJ_SOURCES) $(APP_SOURCES)
 	@echo "Building $(APP_NAME)..."
 	@xcodebuild -project $(APP_NAME).xcodeproj \
 		-scheme $(APP_NAME) \
 		-configuration Release \
 		-destination 'generic/platform=macOS' \
-		ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
-		-quiet
+		ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO
+	@mkdir -p .build
+	@touch $@
 	@echo "Release build complete: $(XCODE_BUILD_APP)"
 
-# Build debug app bundle (used as prerequisite by test-url)
-.PHONY: debug
-debug: require-xcodebuild ## Build debug app bundle for current arch only (see: uname -m)
+.build/debug.stamp: .build/build-tools.stamp $(XCODEPROJ_SOURCES) $(APP_SOURCES)
 	@echo "Building $(APP_NAME) (debug)..."
 	@xcodebuild -project $(APP_NAME).xcodeproj \
 		-scheme $(APP_NAME) \
 		-configuration Debug \
-		-destination 'platform=macOS,arch=$(shell uname -m)' \
-		-quiet
+		-destination 'platform=macOS,arch=$(shell uname -m)'
+	@mkdir -p .build
+	@touch $@
 	@echo "Debug build complete: $(XCODE_DEBUG_APP)"
 
-.PHONY: test
-test: require-swift ## Run unit tests via SPM
+.build/test.stamp: .build/build-tools.stamp $(APP_SOURCES) $(TEST_SOURCES)
 	@swift test
+	@mkdir -p .build
+	@touch $@
+
+.PHONY: build
+build: .build/release.stamp ## Build universal release app bundle (arm64 + x86_64)
+
+# Build debug app bundle (used as prerequisite by test-url)
+.PHONY: debug
+debug: .build/debug.stamp ## Build debug app bundle for current arch only (see: uname -m)
+
+.PHONY: test
+test: .build/test.stamp ## Run unit tests via SPM
 
 .PHONY: test-url
 test-url: debug ## Test which rule matches a URL; usage: make test-url URL=https://example.com [CONFIG=path]
@@ -103,22 +141,28 @@ SWIFT_SOURCES := Sources Tests
 OBJC_M_SOURCES := $(shell find Sources -name '*.m')
 OBJC_H_SOURCES := $(shell find Sources -name '*.h' | grep -v Chrome.h)
 
-.PHONY: lint
-lint: require-swiftlint require-xcrun ## Lint Swift (swiftlint) and Objective-C (clang-format --dry-run)
-	@swiftlint lint --quiet
-	@echo "swiftlint lint: no issues"
-	@xcrun clang-format --dry-run --Werror $(OBJC_M_SOURCES)
-	@for f in $(OBJC_H_SOURCES); do xcrun clang-format --dry-run --Werror --assume-filename=x.m < "$$f" > /dev/null || exit 1; done
+.build/lint.log: .build/build-tools.stamp $(APP_SOURCES) $(TEST_SOURCES)
+	@mkdir -p .build
+	@{ swiftlint lint 2>&1; } | tee $@ ; test $${PIPESTATUS[0]} -eq 0
+	@echo "swiftlint: no issues"
+	@{ xcrun clang-format --dry-run --Werror $(OBJC_M_SOURCES) 2>&1; } | tee -a $@ ; test $${PIPESTATUS[0]} -eq 0
+	@for f in $(OBJC_H_SOURCES); do { xcrun clang-format --dry-run --Werror --assume-filename=x.m < "$$f" 2>&1; } | tee -a $@ ; test $${PIPESTATUS[0]} -eq 0 || exit 1; done
 	@echo "clang-format: no issues"
 
+.PHONY: lint
+lint: .build/lint.log ## Lint Swift (swiftlint) and Objective-C (clang-format --dry-run)
+
+.build/format-check.log: .build/build-tools.stamp $(APP_SOURCES) $(TEST_SOURCES)
+	@mkdir -p .build
+	@{ swiftformat $(SWIFT_SOURCES) --lint 2>&1; } | tee $@ ; test $${PIPESTATUS[0]} -eq 0
+	@{ xcrun clang-format --dry-run --Werror $(OBJC_M_SOURCES) 2>&1; } | tee -a $@ ; test $${PIPESTATUS[0]} -eq 0
+	@for f in $(OBJC_H_SOURCES); do { xcrun clang-format --dry-run --Werror --assume-filename=x.m < "$$f" 2>&1; } | tee -a $@ ; test $${PIPESTATUS[0]} -eq 0 || exit 1; done
+
 .PHONY: format-check
-format-check: require-swiftformat require-xcrun ## Check formatting without making changes
-	@swiftformat $(SWIFT_SOURCES) --lint
-	@xcrun clang-format --dry-run --Werror $(OBJC_M_SOURCES)
-	@for f in $(OBJC_H_SOURCES); do xcrun clang-format --dry-run --Werror --assume-filename=x.m < "$$f" > /dev/null || exit 1; done
+format-check: .build/format-check.log ## Check formatting without making changes
 
 .PHONY: format
-format: require-swiftformat require-xcrun ## Format Swift (swiftformat) and Objective-C (clang-format -i)
+format: .build/build-tools.stamp ## Format Swift (swiftformat) and Objective-C (clang-format -i)
 	@swiftformat $(SWIFT_SOURCES)
 	@xcrun clang-format -i $(OBJC_M_SOURCES)
 	@for f in $(OBJC_H_SOURCES); do xcrun clang-format --assume-filename=x.m < "$$f" > "$$f.tmp" && mv "$$f.tmp" "$$f"; done
@@ -167,7 +211,7 @@ package: build ## Zip release app bundle and print SHA256; usage: make package V
 	echo "sha256=$$SHA256"
 
 .PHONY: ci-trigger
-ci-trigger: require-gh ## Trigger CI workflow and watch; usage: make ci-trigger [NOWATCH=1]
+ci-trigger: .build/release-tools.stamp ## Trigger CI workflow and watch; usage: make ci-trigger [NOWATCH=1]
 	@gh workflow run ci
 	@sleep 3
 	@RUN_ID=$$(gh run list --workflow=ci --limit=1 --json databaseId -q '.[0].databaseId'); \
@@ -175,25 +219,25 @@ ci-trigger: require-gh ## Trigger CI workflow and watch; usage: make ci-trigger 
 	$(if $(filter 1,$(NOWATCH)),true,gh run watch "$$RUN_ID" --exit-status)
 
 .PHONY: ci-status
-ci-status: require-gh ## Show recent CI runs for the current branch
+ci-status: .build/release-tools.stamp ## Show recent CI runs for the current branch
 	@gh run list --branch "$$(git rev-parse --abbrev-ref HEAD)" --limit 5
 	@echo "View on GitHub: $(REPO_URL)/actions"
 
 .PHONY: ci-watch
-ci-watch: require-gh ## Watch the most recent CI run until it completes
+ci-watch: .build/release-tools.stamp ## Watch the most recent CI run until it completes
 	@sleep 3
 	@RUN_ID=$$(gh run list --limit=1 --json databaseId -q '.[0].databaseId'); \
 	echo "CI run: $(REPO_URL)/actions/runs/$$RUN_ID"; \
 	gh run watch "$$RUN_ID" --exit-status
 
 .PHONY: release
-release: ## Bump, tag, push, and watch CI; usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]
+release: .build/release-tools.stamp ## Bump, tag, push, and watch CI; usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]
 	@test -n "$(V)" || (echo "Usage: make release V=X.Y.Z [DRY_RUN=1] [FORCE=1] [NOWATCH=1]" && exit 1)
 	@scripts/release.sh "$(V)" $(if $(filter 1,$(DRY_RUN)),--dry-run,) $(if $(filter 1,$(FORCE)),--force,)
 	$(if $(filter 1,$(DRY_RUN)),,$(if $(filter 1,$(NOWATCH)),,@$(MAKE) ci-watch))
 
 .PHONY: release-status
-release-status: require-gh ## Show the latest GitHub release
+release-status: .build/release-tools.stamp ## Show the latest GitHub release
 	@gh release view
 
 ##@ Daemon
