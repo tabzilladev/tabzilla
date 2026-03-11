@@ -2,7 +2,13 @@
 
 ## Building from Source
 
-Requires macOS 13+ and Xcode 16+.
+### Prerequisites
+Requires macOS 13+ and Xcode 16.2+.
+
+```bash
+brew install swiftlint swiftformat
+```
+
 
 ```bash
 git clone https://github.com/tabzilladev/tabzilla.git
@@ -12,9 +18,7 @@ make install
 
 This builds the app and installs it to `/Applications/Tabzilla.app`.
 
-After installing:
-1. Set as default browser: **System Settings** > **Desktop & Dock** > **Default web browser** > **Tabzilla**
-2. Start the daemon: `make start`
+After installing, set as default browser: **System Settings** > **Desktop & Dock** > **Default web browser** > **Tabzilla**
 
 ## Build System
 
@@ -44,13 +48,14 @@ make test-url URL=https://example.com CONFIG=path/to/config.yaml
 CI runs on GitHub Actions (`macos-14` runner). Currently manual-trigger only:
 
 ```bash
-gh workflow run ci.yml                # Run CI on main
-gh workflow run ci.yml --ref branch   # Run CI on a branch
+make ci-trigger                       # Trigger CI on main and watch
+make ci-trigger NOWATCH=1             # Trigger without watching
+gh workflow run ci.yml --ref branch   # Trigger CI on a specific branch
 ```
 
 Or trigger from the GitHub Actions tab: select "CI" workflow → "Run workflow".
 
-CI runs `make test` (unit tests via SPM) and `make build` (full Xcode build verification).
+CI runs `make test` (unit tests via SPM), `make build` (full Xcode build verification), `make lint`, and `make format-check`.
 
 ### Releasing
 
@@ -61,7 +66,7 @@ Version is tracked in two files (plus Info.plist which inherits from Xcode build
 - `Tabzilla.xcodeproj/project.pbxproj` — `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION`
 
 ```bash
-make version                 # Show current version
+make show-version            # Show current version
 make set-version V=1.1.0     # Set version everywhere (without committing)
 ```
 
@@ -69,20 +74,10 @@ make set-version V=1.1.0     # Set version everywhere (without committing)
 
 ```bash
 make release V=1.1.0 DRY_RUN=1   # Preview what will happen
-make release V=1.1.0              # Execute the release, watch CI
+make release V=1.1.0             # Execute the release, watch CI
 make release V=1.1.0 FORCE=1     # Re-release (delete and recreate tag)
 make release V=1.1.0 NOWATCH=1   # Release without waiting for CI
 ```
-
-This validates preconditions, patches version numbers, commits the bump,
-creates git tag `v1.1.0`, pushes it to origin, and watches CI until completion.
-The tag push triggers the CI release workflow which:
-1. Patches version numbers from the tag
-2. Runs tests
-3. Builds the release app bundle
-4. Packages `Tabzilla.app` into `Tabzilla-1.1.0-macos.zip` with SHA256
-5. Creates a GitHub Release with the zip attached
-6. Updates the Homebrew Cask in `tabzilladev/homebrew-tap`
 
 Preconditions (checked before any changes are made):
 - Working tree is clean (no uncommitted or untracked files)
@@ -90,15 +85,24 @@ Preconditions (checked before any changes are made):
 - Version is valid semver (X.Y.Z) and differs from current
 - Tag does not already exist (unless `FORCE=1`)
 
+This validates preconditions, patches version numbers, commits the bump,
+creates git tag `v1.1.0`, pushes it to origin, and watches CI until completion.
+The tag push triggers the release workflow which:
+1. Runs tests
+2. Builds the release app bundle (universal binary: arm64 + x86_64)
+3. Packages `Tabzilla.app` into `Tabzilla-1.1.0-macos.zip` with SHA256
+4. Creates a GitHub Release with the zip attached
+5. Updates the Homebrew Cask in `tabzilladev/homebrew-tap` (requires `HOMEBREW_TAP_TOKEN` Actions secret)
+
 ## Development Workflow
 
 After making changes:
 
 ```bash
-make install                              # Rebuild and install
-make stop && make start                   # Restart daemon
-open https://example.com                  # Test via default browser
-log stream --predicate 'subsystem == "dev.tabzilla.Tabzilla"' --info  # Watch logs
+make install               # Rebuild and install
+make stop && make start    # Restart daemon
+make logs-follow           # Watch logs
+open https://example.com   # Test via default browser
 ```
 
 ## Project Structure
@@ -119,6 +123,7 @@ tabzilla/
 │   ├── CLI.swift                   # test/status/reload/stop/open subcommands
 │   ├── Config.swift                # YAML models, ConfigurationManager, ConfigFingerprint
 │   ├── RuleEngine.swift            # RouteRequest → RouteAction matching
+│   ├── RouteResolver.swift         # RouteAction + BrowserSnapshot → ResolvedRoute (pure)
 │   ├── Executor.swift              # Browser control via Scripting Bridge
 │   ├── Chrome.h                    # Generated Scripting Bridge header
 │   ├── ChromeController.h/.m       # Chrome automation (Objective-C)
@@ -137,8 +142,8 @@ tabzilla/
 ### Data Flow
 
 ```
-URL Click → Apple Event → RouteRequest → RuleEngine → RouteAction → Executor → [Scripting Bridge] → Browser
-╰─────── macOS ────────╯ ╰────────────────────────── Tabzilla ──────────────╯
+URL Click → Apple Event → RouteRequest → RuleEngine → RouteAction → RouteResolver → ResolvedRoute → Executor → [Scripting Bridge] → Browser
+╰─────── macOS ────────╯ ╰──────────────────────────────────────── Tabzilla ────────────────────────────────╯
 ```
 
 ### Key Design Decisions
@@ -149,9 +154,7 @@ Scripting Bridge requires Objective-C: the `.sdef`-generated header (`Chrome.h`)
 
 SPM doesn't support mixed Swift/Obj-C targets. This forces the app build to use Xcode, which does support mixed-language targets.
 
-SPM is retained for tests because it provides fast `make test` iteration without a full Xcode build. The test target only includes pure Swift files (see decision #12).
-
-The causal chain: Scripting Bridge → Obj-C → mixed-language → Xcode for app build → dual build system.
+SPM is retained for tests because it provides fast `make test` iteration without a full Xcode build. The test target only includes pure Swift files.
 
 #### 2. Logging
 
@@ -167,13 +170,17 @@ Tabzilla uses Apple's unified logging (`os.Logger` in Swift, `os_log` in Objecti
 
 `ChromeController.m` uses `os_log_create()` / `os_log_error()` directly via `<os/log.h>`. No Swift bridging header is needed for logging.
 
-#### 3. Pure/impure separation (RuleEngine vs Executor)
+#### 3. Pure/impure separation (RuleEngine → RouteResolver → Executor)
 
-`RuleEngine` is a pure value type (`struct`): given a `Config` and a `RouteRequest`, it produces a `RouteAction` with no side effects. It doesn't touch the filesystem, network, or any browser.
+Routing is split into three stages:
 
-`Executor` is the side-effect boundary. It receives a `RouteAction` and performs all impure operations: querying Chrome's window/tab state via Scripting Bridge, opening URLs, and activating windows.
+`RuleEngine` is a pure value type (`struct`): given a `Config` and a `RouteRequest`, it produces a `RouteAction` with no side effects.
 
-This split makes the rule-matching logic fully testable without any browser installed or running, and keeps the test suite fast (no mocking of browser state). If you're changing routing behavior, it lives in `RuleEngine.swift`. If you're changing how browsers are controlled, it lives in `Executor.swift` and `ChromeController.m`.
+`RouteResolver` is also a pure `struct`. It takes a `RouteAction` and a `BrowserSnapshot` (the already-fetched browser state) and produces a concrete `ResolvedRoute` — one of: focus a tab, navigate a tab, open in an existing window, create a new window, or fall back to `NSWorkspace`.
+
+`Executor` is the side-effect boundary. It fetches the `BrowserSnapshot` from Chrome via Scripting Bridge, calls `RouteResolver.resolve()`, then executes the resulting `ResolvedRoute` by calling `ChromeController` or `NSWorkspace`.
+
+This split makes both rule-matching and routing-decision logic fully testable without any browser installed or running. If you're changing URL-to-action matching, it lives in `RuleEngine.swift`. If you're changing how a `RouteAction` is translated into a concrete browser operation, it lives in `RouteResolver.swift`. If you're changing how browsers are actually controlled, it lives in `Executor.swift` and `ChromeController.m`.
 
 #### 4. Batch IPC and tab caching
 
