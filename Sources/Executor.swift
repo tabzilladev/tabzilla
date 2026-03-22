@@ -35,7 +35,7 @@ struct Executor {
         }
 
         // Check if this is a Chrome-based browser (supports window targeting via Scripting Bridge)
-        let isChromeBasedBrowser = bundleId.hasPrefix("com.google.Chrome")
+        let isChromeBasedBrowser = isChromeBasedBrowser(bundleId)
 
         // Build snapshot (Chrome-based browsers only)
         let snapshot: BrowserSnapshot? = isChromeBasedBrowser

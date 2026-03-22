@@ -53,6 +53,12 @@ extension BrowserSnapshot {
     }
 }
 
+// MARK: - Browser Support
+
+func isChromeBasedBrowser(_ bundleId: String) -> Bool {
+    bundleId.hasPrefix("com.google.Chrome")
+}
+
 // MARK: - Flat Tab View
 
 extension BrowserSnapshot {

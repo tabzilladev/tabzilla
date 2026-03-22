@@ -358,7 +358,7 @@ extension CLI {
 
             return browsers.sorted().map { bundleId in
                 let isInstalled = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) != nil
-                let isChromeBasedBrowser = bundleId.hasPrefix("com.google.Chrome")
+                let isChromeBasedBrowser = isChromeBasedBrowser(bundleId)
 
                 if isChromeBasedBrowser, isInstalled {
                     if let rawWindows = chromeController.getAllWindows(forBundleId: bundleId) {
