@@ -96,7 +96,7 @@ if [[ $DRY_RUN -eq 1 ]]; then
     echo "    1. Version already $VERSION, skip version bump"
     echo "    2. Delete existing tag $TAG (local and remote)"
     echo "    3. Create tag: $TAG"
-    echo "    4. Push tag to origin"
+    echo "    4. Push tag to origin (no main push needed)"
   else
     echo "Dry run: release $VERSION (currently $CURRENT_VERSION)"
     echo ""
@@ -105,15 +105,16 @@ if [[ $DRY_RUN -eq 1 ]]; then
     echo "       - Sources/CLI.swift"
     echo "       - Tabzilla.xcodeproj/project.pbxproj"
     echo "    2. Commit: \"$VERSION\""
-    echo "    3. Create tag: $TAG"
-    echo "    4. Push tag to origin"
+    echo "    3. Push main to origin"
+    echo "    4. Create tag: $TAG"
+    echo "    5. Push tag to origin"
   fi
   echo ""
   echo "  GitHub (triggered by tag push):"
-  echo "    5. CI: run tests, build release app bundle"
-  echo "    6. Package Tabzilla.app → Tabzilla-$VERSION-macos.zip (with SHA256)"
-  echo "    7. Create GitHub Release$(if [[ $FORCE -eq 1 ]]; then echo " (update existing if present)"; fi) with zip attached"
-  echo "    8. Update Homebrew Cask in tabzilladev/homebrew-tap"
+  echo "    6. CI: run tests, build release app bundle"
+  echo "    7. Package Tabzilla.app → Tabzilla-$VERSION-macos.zip (with SHA256)"
+  echo "    8. Create GitHub Release$(if [[ $FORCE -eq 1 ]]; then echo " (update existing if present)"; fi) with zip attached"
+  echo "    9. Update Homebrew Cask in tabzilladev/homebrew-tap"
   echo ""
   echo "No changes made."
   exit 0
@@ -134,6 +135,9 @@ if [[ $FORCE -eq 1 ]]; then
   [[ $LOCAL_TAG_EXISTS -eq 1 ]] && git -C "$REPO_ROOT" tag -d "$TAG"
   [[ $REMOTE_TAG_EXISTS -eq 1 ]] && git -C "$REPO_ROOT" push origin ":refs/tags/$TAG"
 fi
+
+# Step: push main so the version bump commit is on origin before tagging
+git -C "$REPO_ROOT" push origin main
 
 # Step: create and push tag
 echo "Tagging $TAG..."
