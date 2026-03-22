@@ -500,7 +500,7 @@ final class RouteResolverTests: XCTestCase {
 
     // MARK: - BrowserSnapshot.flatTabs
 
-    // flatTabs() is a test-only convenience; FlatTab lives in BrowserSnapshot for RouteResolver.
+    /// flatTabs() is a test-only convenience; FlatTab lives in BrowserSnapshot for RouteResolver.
     private func flatTabs(_ snapshot: BrowserSnapshot) -> [BrowserSnapshot.FlatTab] {
         snapshot.windows.flatMap { window in
             window.tabs.map { tab in

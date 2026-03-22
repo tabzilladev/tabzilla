@@ -4,7 +4,7 @@ import Foundation
 import os
 
 private let logger = Logger(subsystem: "dev.tabzilla.Tabzilla", category: "cli")
-// Kept as a literal (not read from bundle) so it works outside the app bundle (SPM tests, CLI).
+/// Kept as a literal (not read from bundle) so it works outside the app bundle (SPM tests, CLI).
 let appVersion = "0.2.0"
 
 struct CLI: ParsableCommand {

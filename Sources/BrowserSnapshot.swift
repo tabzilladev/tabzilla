@@ -70,4 +70,3 @@ extension BrowserSnapshot {
 func isChromeBasedBrowser(_ bundleId: String) -> Bool {
     bundleId.hasPrefix("com.google.Chrome")
 }
-

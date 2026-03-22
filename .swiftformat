@@ -43,7 +43,6 @@
 --exponentgrouping disabled
 --fractiongrouping disabled
 --hexliteralcase uppercase
---ifdef no-indent
 --patternlet hoist
 --redundanttype inferred
 --semicolons never
