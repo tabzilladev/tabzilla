@@ -148,10 +148,11 @@ struct RuleEngine {
     private func substituteCaptures(_ pattern: String, with groups: [String]) -> String {
         var result = pattern
 
-        // Replace \1–\9 with regex-escaped captured groups.
+        // Replace \9–\1 in descending order so that a literal \1 in the pattern cannot
+        // accidentally match the leading digit of \10, \11, etc.
         // Capped at 9 because that's the POSIX/PCRE convention for backreference syntax,
         // and no realistic URL pattern needs more than 9 capture groups.
-        for idx in 1..<min(groups.count, 10) {
+        for idx in stride(from: min(groups.count, 10) - 1, through: 1, by: -1) {
             let escapedGroup = NSRegularExpression.escapedPattern(for: groups[idx])
             result = result.replacingOccurrences(of: "\\\(idx)", with: escapedGroup)
         }
