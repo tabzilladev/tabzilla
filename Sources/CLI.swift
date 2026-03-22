@@ -435,7 +435,9 @@ extension CLI {
 
 enum DaemonPID {
     static var pidFile: String {
-        guard let supportDir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+        guard let supportDir = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        else {
             return "~/Library/Application Support/Tabzilla/tabz.pid"
         }
         return supportDir.appendingPathComponent("Tabzilla/tabz.pid").path
