@@ -80,6 +80,7 @@ enum ConfigurationManager {
         return nil
     }
 
+    // Main-queue only — accessed exclusively from AppDelegate callbacks.
     private static var cachedFingerprint: ConfigFingerprint?
 
     /// Load configuration from the first found config file.
