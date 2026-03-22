@@ -88,7 +88,8 @@ struct RuleEngine {
         let browser = rule.browser ?? config.defaults.browser
         let windowTarget = rule.window ?? config.defaults.window
 
-        // Build tab actions in priority order: focusTab → useTab → followTab
+        // Build tab actions in priority order: focusTab → useTab → followTab.
+        // RouteResolver takes the first matching action, so append order is priority order.
         var tabActions: [TabAction] = []
         if let focusTabPattern = rule.focusTab {
             let substitutedPattern = substituteCaptures(focusTabPattern, with: captureGroups)
