@@ -21,7 +21,7 @@ disabled_rules:
   - trailing_whitespace  # swiftformat handles this
   - trailing_comma       # swiftformat owns this (adds trailing commas)
   - opening_brace        # swiftformat owns brace placement
-  - force_cast           # used intentionally with AX API (see TabzillaApp.swift)
+  - force_cast
   - file_length          # test files grow linearly with coverage; not a useful signal
   - type_body_length     # test classes grow linearly with coverage; not a useful signal
 

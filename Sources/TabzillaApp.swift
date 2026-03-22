@@ -275,12 +275,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let result = AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedWindow)
 
         if result == .success, let window = focusedWindow {
+            // AXUIElementCopyAttributeValue returns an AXUIElement for window attributes per the AX API contract.
+            guard let axWindow = window as? AXUIElement else { return nil }
             var titleValue: CFTypeRef?
-            // Force-cast: AXUIElementCopyAttributeValue always returns AXUIElement per Accessibility API contract.
-            // swiftlint:disable:next force_cast
-            let titleResult = AXUIElementCopyAttributeValue(
-                window as! AXUIElement, kAXTitleAttribute as CFString, &titleValue
-            )
+            let titleResult = AXUIElementCopyAttributeValue(axWindow, kAXTitleAttribute as CFString, &titleValue)
 
             if titleResult == .success, let title = titleValue as? String {
                 return title
