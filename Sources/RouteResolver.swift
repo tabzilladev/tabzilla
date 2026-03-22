@@ -127,7 +127,7 @@ struct RouteResolver {
 
         let regex: NSRegularExpression
         do {
-            regex = try NSRegularExpression(pattern: pattern, options: .caseInsensitive)
+            regex = try NSRegularExpression(pattern: pattern, options: [])
         } catch {
             // Invalid pattern — skip silently.
             return nil

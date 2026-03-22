@@ -625,7 +625,8 @@ final class RouteResolverTests: XCTestCase {
 
     // MARK: - Regex Matching Details
 
-    func testCaseInsensitiveURLMatching() {
+    func testCaseSensitiveURLMatchingByDefault() {
+        // Patterns are case-sensitive by default; a lowercase pattern should not match a mixed-case URL.
         let tab = makeTab(id: "t1", index: 1, url: "https://GitHub.COM/User/Repo")
         let window = makeWindow(id: "w1", tabs: [tab])
         let snapshot = makeSnapshot(windows: [window])
@@ -635,8 +636,24 @@ final class RouteResolverTests: XCTestCase {
 
         let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
 
+        guard case .openWithWorkspace = result else {
+            return XCTFail("Expected no match (case-sensitive), got \(result)")
+        }
+    }
+
+    func testInlineCaseInsensitiveFlagMatches() {
+        // Users can opt into case-insensitive matching with the (?i) inline flag.
+        let tab = makeTab(id: "t1", index: 1, url: "https://GitHub.COM/User/Repo")
+        let window = makeWindow(id: "w1", tabs: [tab])
+        let snapshot = makeSnapshot(windows: [window])
+        let action = makeAction(
+            tabActions: [TabAction(pattern: "(?i)github\\.com", kind: .focus)]
+        )
+
+        let result = resolver.resolve(action: action, snapshot: snapshot, isChromeBasedBrowser: true)
+
         guard case .focusTab = result else {
-            return XCTFail("Expected .focusTab (case-insensitive match), got \(result)")
+            return XCTFail("Expected .focusTab with (?i) flag, got \(result)")
         }
     }
 
