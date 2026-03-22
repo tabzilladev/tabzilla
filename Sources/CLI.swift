@@ -19,49 +19,47 @@ struct CLI: ParsableCommand {
 
 // MARK: - Route Helper
 
-private enum RouteHelper {
-    struct LoadedRoute {
-        let config: Config
-        let configPath: String?
-        let action: RouteAction
+private struct LoadedRoute {
+    let config: Config
+    let configPath: String?
+    let action: RouteAction
+}
+
+private func loadAndRoute(
+    url: URL, configPath: String?, sourceApp: String?, sourceWindowTitle: String?
+) throws -> LoadedRoute {
+    let loadedConfig: Config
+    do {
+        loadedConfig = try ConfigurationManager.resolveConfig(from: configPath)
+    } catch {
+        throw ValidationError("Failed to load config: \(error.localizedDescription)")
     }
 
-    static func loadAndRoute(
-        url: URL, configPath: String?, sourceApp: String?, sourceWindowTitle: String?
-    ) throws -> LoadedRoute {
-        let loadedConfig: Config
-        do {
-            loadedConfig = try ConfigurationManager.resolveConfig(from: configPath)
-        } catch {
-            throw ValidationError("Failed to load config: \(error.localizedDescription)")
-        }
+    let resolvedConfigPath = configPath.map { ($0 as NSString).expandingTildeInPath }
+        ?? ConfigurationManager.findConfigPath()
+    let engine = RuleEngine(config: loadedConfig)
+    let action = engine.testMatch(url: url, sourceApp: sourceApp, sourceWindowTitle: sourceWindowTitle)
+    return LoadedRoute(config: loadedConfig, configPath: resolvedConfigPath, action: action)
+}
 
-        let resolvedConfigPath = configPath.map { ($0 as NSString).expandingTildeInPath }
-            ?? ConfigurationManager.findConfigPath()
-        let engine = RuleEngine(config: loadedConfig)
-        let action = engine.testMatch(url: url, sourceApp: sourceApp, sourceWindowTitle: sourceWindowTitle)
-        return LoadedRoute(config: loadedConfig, configPath: resolvedConfigPath, action: action)
+private func printRouteResult(action: RouteAction, indent: String = "") {
+    print("\(indent)Matched Rule: \(action.matchedRule ?? "(default)")")
+    print("\(indent)Browser:      \(action.browser)")
+    if let window = action.windowTarget {
+        print("\(indent)Window:       \(window)")
     }
-
-    static func printRouteResult(action: RouteAction, indent: String = "") {
-        print("\(indent)Matched Rule: \(action.matchedRule ?? "(default)")")
-        print("\(indent)Browser:      \(action.browser)")
-        if let window = action.windowTarget {
-            print("\(indent)Window:       \(window)")
-        }
-        if !action.tabActions.isEmpty {
-            let tabDescriptions = action.tabActions.map { tab -> String in
-                let tabType = switch tab.kind {
-                case .focus: "focusTab"
-                case .use: "useTab"
-                case .follow: "followTab"
-                }
-                return "\(tabType)=\"\(tab.pattern)\""
+    if !action.tabActions.isEmpty {
+        let tabDescriptions = action.tabActions.map { tab -> String in
+            let tabType = switch tab.kind {
+            case .focus: "focusTab"
+            case .use: "useTab"
+            case .follow: "followTab"
             }
-            print("\(indent)Tab Actions:  \(tabDescriptions.joined(separator: " -> "))")
+            return "\(tabType)=\"\(tab.pattern)\""
         }
-        print("\(indent)Final URL:    \(action.routeURL)")
+        print("\(indent)Tab Actions:  \(tabDescriptions.joined(separator: " -> "))")
     }
+    print("\(indent)Final URL:    \(action.routeURL)")
 }
 
 // MARK: - Open Command
@@ -92,7 +90,7 @@ extension CLI {
                 throw ValidationError("Invalid URL: \(url)")
             }
 
-            let route = try RouteHelper.loadAndRoute(
+            let route = try loadAndRoute(
                 url: openURL, configPath: config, sourceApp: sourceApp, sourceWindowTitle: sourceWindowTitle
             )
 
@@ -107,7 +105,7 @@ extension CLI {
                     print("Source Title: \(sourceWindowTitle)")
                 }
                 print("")
-                RouteHelper.printRouteResult(action: action)
+                printRouteResult(action: action)
                 print("Config:       \(route.configPath ?? "default")")
                 print("")
             }
@@ -158,7 +156,7 @@ extension CLI {
                 throw ValidationError("Invalid URL: \(url)")
             }
 
-            let route = try RouteHelper.loadAndRoute(
+            let route = try loadAndRoute(
                 url: testURL, configPath: config, sourceApp: sourceApp, sourceWindowTitle: sourceWindowTitle
             )
 
@@ -172,7 +170,7 @@ extension CLI {
             }
             print("")
             print("Result:")
-            RouteHelper.printRouteResult(action: route.action, indent: "  ")
+            printRouteResult(action: route.action, indent: "  ")
 
             if verbose {
                 print("")
