@@ -500,9 +500,24 @@ final class RouteResolverTests: XCTestCase {
 
     // MARK: - BrowserSnapshot.flatTabs
 
+    // flatTabs() is a test-only convenience; FlatTab lives in BrowserSnapshot for RouteResolver.
+    private func flatTabs(_ snapshot: BrowserSnapshot) -> [BrowserSnapshot.FlatTab] {
+        snapshot.windows.flatMap { window in
+            window.tabs.map { tab in
+                BrowserSnapshot.FlatTab(
+                    windowId: window.id,
+                    windowName: window.name,
+                    tabId: tab.id,
+                    tabIndex: tab.index,
+                    url: tab.url
+                )
+            }
+        }
+    }
+
     func testFlatTabsEmpty() {
         let snapshot = makeSnapshot(windows: [])
-        XCTAssertTrue(snapshot.flatTabs().isEmpty)
+        XCTAssertTrue(flatTabs(snapshot).isEmpty)
     }
 
     func testFlatTabsAcrossMultipleWindows() {
@@ -513,7 +528,7 @@ final class RouteResolverTests: XCTestCase {
         let window2 = makeWindow(id: "w2", name: "Second", tabs: [tab3])
         let snapshot = makeSnapshot(windows: [window1, window2])
 
-        let flat = snapshot.flatTabs()
+        let flat = flatTabs(snapshot)
         XCTAssertEqual(flat.count, 3)
         XCTAssertEqual(flat[0].windowId, "w1")
         XCTAssertEqual(flat[0].windowName, "First")

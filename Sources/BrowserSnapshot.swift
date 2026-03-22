@@ -53,12 +53,6 @@ extension BrowserSnapshot {
     }
 }
 
-// MARK: - Browser Support
-
-func isChromeBasedBrowser(_ bundleId: String) -> Bool {
-    bundleId.hasPrefix("com.google.Chrome")
-}
-
 // MARK: - Flat Tab View
 
 extension BrowserSnapshot {
@@ -69,18 +63,11 @@ extension BrowserSnapshot {
         let tabIndex: Int
         let url: String
     }
-
-    func flatTabs() -> [FlatTab] {
-        windows.flatMap { window in
-            window.tabs.map { tab in
-                FlatTab(
-                    windowId: window.id,
-                    windowName: window.name,
-                    tabId: tab.id,
-                    tabIndex: tab.index,
-                    url: tab.url
-                )
-            }
-        }
-    }
 }
+
+// MARK: - Browser Support
+
+func isChromeBasedBrowser(_ bundleId: String) -> Bool {
+    bundleId.hasPrefix("com.google.Chrome")
+}
+
