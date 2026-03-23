@@ -304,7 +304,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func routeURL(request: RouteRequest) {
         guard let engine = reloadConfiguration(), let exec = executor else {
             logger.error("Rule engine or executor not initialized")
-            openURLInDefaultBrowser(request.url)
+            openURLInFallbackBrowser(request.url)
             return
         }
 
@@ -316,12 +316,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             try exec.execute(action: action)
         } catch {
             logger.error("Failed to execute action: \(error, privacy: .public)")
-            openURLInDefaultBrowser(request.url)
+            openURLInFallbackBrowser(request.url)
         }
     }
 
-    private func openURLInDefaultBrowser(_ url: URL) {
-        NSWorkspace.shared.open(url)
+    private func openURLInFallbackBrowser(_ url: URL) {
+        let chrome = "com.google.Chrome"
+        let safari = "com.apple.Safari"
+        let bundleId = NSWorkspace.shared.urlForApplication(withBundleIdentifier: chrome) != nil ? chrome : safari
+        logger.error("Routing failed — opening in fallback browser (\(bundleId, privacy: .public))")
+        logger.error("Fallback URL: \(url, privacy: .private)")
+        guard let browserURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) else { return }
+        NSWorkspace.shared.open([url], withApplicationAt: browserURL, configuration: NSWorkspace.OpenConfiguration())
     }
 
     // MARK: - PID File Management
