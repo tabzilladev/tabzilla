@@ -86,6 +86,7 @@ struct Executor {
             if !success {
                 let message = error?.localizedDescription ?? "Unknown error"
                 logger.error("Failed to open URL in window: \(message, privacy: .public)")
+                logAutomationHintIfDenied(bundleId)
                 throw ExecutorError.scriptingError(message)
             }
 
@@ -101,12 +102,25 @@ struct Executor {
             if !success {
                 let message = error?.localizedDescription ?? "Unknown error"
                 logger.error("Failed to create window: \(message, privacy: .public)")
+                logAutomationHintIfDenied(bundleId)
                 throw ExecutorError.scriptingError(message)
             }
 
         case let .openWithWorkspace(bundleId, url, matchedRule):
             logger.info("Opening URL with workspace matchedRule=\(matchedRule ?? "none", privacy: .public)")
             try openURLInBrowser(url, bundleId: bundleId)
+        }
+    }
+
+    /// When a Scripting Bridge call fails, check whether Automation permission for
+    /// the target is the likely cause and, if so, log an actionable hint. Converts
+    /// a silent/cryptic Apple Event failure into something the user can fix.
+    private func logAutomationHintIfDenied(_ bundleId: String) {
+        let state = Permissions.automationState(forTargetBundleID: bundleId, prompt: false)
+        if state != .granted {
+            logger.error(
+                "Automation permission for \(bundleId, privacy: .public) is not granted — run `tabz setup`."
+            )
         }
     }
 

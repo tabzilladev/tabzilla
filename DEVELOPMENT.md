@@ -18,7 +18,28 @@ make install
 
 This builds the app and installs it to `/Applications/Tabzilla.app`.
 
-After installing, set as default browser: **System Settings** > **Desktop & Dock** > **Default web browser** > **Tabzilla**
+After installing, launch it once and run the guided setup to grant permissions
+and set Tabzilla as your default browser:
+
+```bash
+tabz setup     # or: /Applications/Tabzilla.app/Contents/MacOS/Tabzilla setup
+```
+
+Check the status of every requirement anytime with `tabz doctor`.
+
+### Uninstall / fresh-install reset
+
+`make uninstall` removes the app **and** clears the macOS state that lives
+outside the bundle (the default-browser binding plus Accessibility and
+Automation grants) — the same state the cask's `brew uninstall --zap` clears for
+end users. Use it to reproduce a true fresh-install state:
+
+```bash
+make uninstall
+```
+
+(`make install` removes the old bundle itself, so the fast reinstall loop
+doesn't need this — reach for it only when you want a clean-slate reset.)
 
 ## Build System
 

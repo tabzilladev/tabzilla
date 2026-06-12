@@ -263,6 +263,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func getSourceWindowTitle(for bundleId: String) -> String? {
+        // Accessibility is required to read window titles. Without it the AX calls
+        // below silently return nil and any rule that matches on sourceWindowTitle
+        // quietly won't fire — so surface an actionable hint instead.
+        guard Permissions.accessibilityGranted() else {
+            logger.error("Accessibility not granted — window-title rules won't match. Run `tabz setup`.")
+            return nil
+        }
+
         // Use Accessibility API - works for all apps including Electron apps like Slack
         guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first else {
             return nil
