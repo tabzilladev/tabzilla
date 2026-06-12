@@ -15,7 +15,7 @@ jobs:
       sha256: ${{ steps.checksum.outputs.sha256 }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -30,7 +30,13 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_16.2.app
 
       - name: Install lint/format tools
-        run: brew install swiftlint swiftformat
+        env:
+          HOMEBREW_REQUIRE_TAP_TRUST: "1"
+        run: |
+          # Trust the runner's preinstalled third-party taps so the trust check
+          # loads them silently instead of warning.
+          brew trust --tap aws/tap azure/bicep || true
+          brew install swiftlint swiftformat
 
       - name: Run unit tests
         run: make test
@@ -70,7 +76,7 @@ jobs:
     needs: release
     steps:
       - name: Checkout homebrew-tap
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: tabzilladev/homebrew-tap
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}

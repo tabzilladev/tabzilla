@@ -41,14 +41,37 @@ make test-url URL=https://example.com
 make test-url URL=https://example.com CONFIG=path/to/config.yaml
 ```
 
+## Landing Changes
+
+Work lands on `main` via pull requests so that CI gates each change and the
+release changelog (auto-generated from merged PR titles) stays meaningful.
+
+```bash
+git switch -c bdupras-short-summary   # branch naming: <user>-three-to-five-word-summary
+# ... make changes, commit ...
+git push -u origin bdupras-short-summary
+gh pr create --fill                   # CI runs automatically on the PR
+gh pr merge --squash                  # squash so the PR title is the changelog line
+```
+
+Notes:
+- The **PR title** becomes the changelog entry — write it as the user-facing summary.
+- Squash-merge keeps `main` linear; individual commit messages are not surfaced in
+  release notes (GitHub auto-notes are PR-level only).
+- Branch protection is not enforced (private repo on the free plan), so the PR flow is
+  convention. Avoid pushing feature work directly to `main`.
+- The release version-bump commit (made by `make release`) is the one expected exception
+  — it lands directly on `main`.
+
 ## CI/CD
 
 ### Continuous Integration
 
-CI runs on GitHub Actions (`macos-14` runner). Currently manual-trigger only:
+CI runs on GitHub Actions (`macos-14` runner). It runs automatically on every
+pull request targeting `main`, and can also be triggered manually:
 
 ```bash
-make ci-trigger                       # Trigger CI on main and watch
+make ci-trigger                       # Trigger CI manually and watch
 make ci-trigger NOWATCH=1             # Trigger without watching
 gh workflow run ci.yml --ref branch   # Trigger CI on a specific branch
 ```
