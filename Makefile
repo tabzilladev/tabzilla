@@ -177,11 +177,28 @@ install: build ## Build, install to /Applications, and register with Launch Serv
 	@$(LSREGISTER) -f "$(INSTALLED_APP)"
 	@echo "Installed and registered $(APP_NAME)"
 
+# Removes the app AND the macOS state that otherwise survives outside the app bundle
+# (keyed by bundle id) and silently "reappears" on reinstall:
+#   - LaunchServices: the default http/https handler choice (the "default browser"
+#     setting) plus Tabzilla's URL-scheme capability registration. The app bundle is
+#     removed first, then a full `-kill -r` rebuild drops the stale Tabzilla bindings;
+#     macOS then self-heals the default handler back to another installed browser.
+#     (A plain `lsregister -u` does NOT clear the persisted choice — the rebuild does.)
+#   - TCC: Accessibility + Automation (AppleEvents) grants.
+# Leaves config files untouched. Gatekeeper note: the "Open Anyway" approval is keyed to
+# code identity and is not cleanly resettable here; a fresh `brew install` re-quarantines
+# and re-triggers it. (`make install` does its own bundle removal, so the fast dev
+# reinstall loop never needs this — use it when you want a true fresh-install state.)
 .PHONY: uninstall
-uninstall: ## Remove from /Applications
+uninstall: ## Remove app + clear macOS default-browser/TCC state (fresh-install reset)
 	@echo "Uninstalling $(APP_NAME)..."
 	@rm -rf "$(INSTALLED_APP)"
-	@echo "Uninstalled"
+	@$(LSREGISTER) -kill -r -domain local -domain user -domain system >/dev/null 2>&1 || true
+	@echo "  ✓ removed app and rebuilt Launch Services (stale default-browser binding dropped)"
+	@tccutil reset Accessibility $(BUNDLE_ID) >/dev/null 2>&1 && echo "  ✓ reset Accessibility" || echo "  - Accessibility (no entry)"
+	@tccutil reset AppleEvents $(BUNDLE_ID) >/dev/null 2>&1 && echo "  ✓ reset Automation (AppleEvents)" || echo "  - Automation (no entry)"
+	@echo "Uninstalled — default browser, Accessibility, and Automation cleared."
+	@echo "Note: Gatekeeper approval is not reset here — a fresh 'brew install' re-triggers it."
 
 .PHONY: register
 register: ## Re-register with Launch Services (useful after manual copy)
