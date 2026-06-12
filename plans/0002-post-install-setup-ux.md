@@ -1,7 +1,19 @@
 # Plan: Friendlier Post-Install Setup (CLI-driven walkthrough)
 
-Status: Draft
+Status: Implemented (PR #5)
 Date: 2026-06-12
+
+> **Implementation correction (2026-06-12):** risk/assumption #4 below was **wrong**.
+> macOS attributes a CLI tool's TCC requests to its *responsible process* — the
+> launching terminal — not to the tool's own code identity, so AX/Automation
+> checks run from `tabz` report the *terminal's* grants (a false positive on any
+> dev machine where the terminal already has them). The Accessibility and
+> Automation checks were therefore moved **into the daemon** (which Launch
+> Services runs as itself, carrying Tabzilla's real TCC identity), reached over a
+> file + `SIGUSR1` request/response probe (`PermissionProbe` /
+> `PermissionProbeClient`). When the daemon isn't running those checks report
+> `?` *unknown* rather than guessing. Default-browser / daemon / config checks
+> stay CLI-local (they don't go through TCC). See the updated #4 below.
 
 ## Problem
 
@@ -71,19 +83,24 @@ Checks:
 
 | Check | How | Source reference |
 |-------|-----|------------------|
-| Accessibility granted | `AXIsProcessTrusted()` (no-prompt variant) | new; AX already used at `TabzillaApp.swift:265` |
-| Automation → Chrome | `AEDeterminePermissionToAutomateTarget(...)` with the Chrome bundle id, `askUserIfNeeded=false` | new; SB calls in `ChromeController.m` |
+| Accessibility granted | `AXIsProcessTrusted()` (no-prompt variant), **evaluated in the daemon** via the probe | `Permissions.swift`; AX also used at `TabzillaApp.swift` |
+| Automation → Chrome | `AEDeterminePermissionToAutomateTarget(...)` with the Chrome bundle id, `askUserIfNeeded=false`, **evaluated in the daemon** | `Permissions.swift`; SB calls in `ChromeController.m` |
 | Automation → Chrome Beta | same, `com.google.Chrome.beta` | " |
-| Default browser is Tabzilla | `LSCopyDefaultHandlerForURLScheme("http")` compare to `dev.tabzilla.Tabzilla` | new |
+| Default browser is Tabzilla | `NSWorkspace.urlForApplication(toOpen:)` (non-deprecated) compared to `dev.tabzilla.Tabzilla` — CLI-local, not TCC | `Permissions.swift` |
 | Daemon running | existing PID check | `CLI.Status` / `DaemonPID` |
 | Config present | existing config search | `ConfigurationManager.findConfigPath()` |
 
-Output format: one line per check, `✓ / ✗ / —`, with a one-line hint on failure. Support
-`--json` (mirrors `tabz dump` style) for scripting and bug reports.
+The AX and Automation rows are **probed from the daemon** (see the correction note
+at the top) — the CLI can't evaluate them truthfully itself. If the daemon isn't
+running they report `?` *unknown*.
 
-Which browsers to check for Automation: derive from config
-(`getBrowsersFromConfig` already exists in `CLI.swift:342`) so it covers whatever the
-user actually routes to, not a hardcoded list.
+Output format: one line per check, `✓ / ✗ / ? / —`, with a one-line hint on
+failure or unknown. Support `--json` (mirrors `tabz dump` style) for scripting and
+bug reports.
+
+Which browsers to check for Automation: derive from config (`browsersFromConfig`,
+extracted from `CLI.Dump` into `Config.swift` so it's shared and SPM-testable) so
+it covers whatever the user actually routes to, not a hardcoded list.
 
 ### Component 2 — `tabz setup` (interactive walkthrough)
 
@@ -225,11 +242,12 @@ equivalents in the README for users who want a full wipe. Keep this out of `tabz
 
 | File | Change |
 |------|--------|
-| `Sources/CLI.swift` | Add `Doctor` + `Setup` subcommands; register in `subcommands:` (`CLI.swift:15`). Reuse `getBrowsersFromConfig` (`:342`), PID/status helpers. |
-| `Sources/Permissions.swift` (new) | Wrap AX (`AXIsProcessTrusted[WithOptions]`), Automation (`AEDeterminePermissionToAutomateTarget`), default-browser read (`LSCopyDefaultHandlerForURLScheme`) + set (`LSSetDefaultHandlerForURLScheme` — verified working from CLI w/ consent dialog; or `NSWorkspace.setDefaultApplicationToOpen` for the non-deprecated path) + the System-Settings deep-link URLs. Pure-ish, unit-testable where possible. |
-| `Sources/TabzillaApp.swift` | (Component 4) On AX/AE failure, emit an actionable `os_log` hint. Around `getSourceWindowTitle` (`:265`) and the Executor error paths. |
+| `Sources/CLI.swift` | Register `Doctor` + `Setup` subcommands in `subcommands:`. `browsersFromConfig` moved out to `Config.swift`. |
+| `Sources/Doctor.swift` (new) | `DoctorEngine` (builds the report; AX/Automation via the daemon probe), `tabz doctor` + `tabz setup` commands, and the CLI-side `PermissionProbeClient` (writes request, sends `SIGUSR1`, polls for the response). SPM-excluded (depends on `DaemonPID`). |
+| `Sources/Permissions.swift` (new) | Wrap AX (`AXIsProcessTrusted[WithOptions]`), Automation (`AEDeterminePermissionToAutomateTarget`), default-browser read (`NSWorkspace.urlForApplication(toOpen:)`) + set (`LSSetDefaultHandlerForURLScheme`, verified from CLI w/ consent dialog) + System-Settings deep-link URLs. Also the `PermissionProbe` types + daemon-side `evaluate()`/`serviceRequest()` and the pure `DoctorReport` model. Unit-tested. |
+| `Sources/TabzillaApp.swift` | Handle `SIGUSR1` → `PermissionProbe.serviceRequest()` (daemon evaluates AX/Automation with its own TCC identity). (Component 4) On AX/AE failure, emit an actionable `os_log` hint, around `getSourceWindowTitle` and the Executor error paths. |
 | `Casks/tabzilla.rb` (tap repo) | Add `caveats` stanza (Component 3); extend `zap` to reset TCC + rebuild Launch Services (Component 5). Separate repo `tabzilladev/homebrew-tap`. |
-| `Makefile` | `uninstall` extended to also clear TCC + rebuild Launch Services (Component 5 dev-loop tool) — **done**. |
+| `Makefile` | `uninstall` stops the daemon first, then removes the app, rebuilds Launch Services, and requests TCC resets (Component 5 dev-loop tool) — **done**. Honest "reset requested" wording since adhoc-signed grants may survive (#5). |
 | `README.md` / `DEVELOPMENT.md` | Replace the manual "set as default browser" steps with `tabz setup`; document `tabz doctor`; document full-wipe uninstall (`brew uninstall --zap`, or `make uninstall` for devs). |
 
 ## Testing
@@ -260,18 +278,27 @@ equivalents in the README for users who want a full wipe. Keep this out of `tabz
    across macOS versions. Pin to the panes verified on the supported floor (Ventura, per
    the cask `depends_on macos: :ventura`) and treat them as best-effort (always also print
    the click-path in text).
-4. **CLI invokes from `tabz` symlink** → the *daemon* app bundle is the TCC identity, but a
-   CLI invocation is the *same* binary/bundle. Confirm AX/Automation grants attributed to
-   the app bundle are seen by the CLI invocation (same code-signing identity / bundle id).
-   This is the load-bearing assumption — validate early.
-5. **Unsigned + TCC.** Without signing, TCC grants are keyed to the binary; rebuilding/
-   reinstalling can invalidate prior grants. Worth a note to users that upgrades may
-   require re-granting until the app is signed.
+4. ~~**CLI invokes from `tabz` symlink** → grants attributed to the app bundle are seen by
+   the CLI invocation (same identity).~~ **FALSE — disproven 2026-06-12.** macOS attributes
+   a CLI tool's TCC requests to its *responsible process* (the launching terminal), not to
+   the tool's own code identity, even though it's the same binary as the daemon. A brand-new
+   never-granted binary reports `AXIsProcessTrusted() == true` when run from a terminal that
+   has the grant. **Resolution:** AX/Automation are evaluated **in the daemon** (Launch
+   Services runs it as itself → real Tabzilla TCC identity) via a file + `SIGUSR1` probe
+   (`PermissionProbe`), and report `?` *unknown* when the daemon is down. This is the single
+   biggest deviation from the original design.
+5. **Unsigned + TCC.** The app is adhoc-signed, so TCC grants aren't reliably keyed to the
+   bundle id: `tccutil reset <bundle-id>` often clears nothing and grants survive
+   reinstall, and rebuilding can invalidate prior grants. `make uninstall` / the cask `zap`
+   say "reset requested" (not "reset") and point users at `tabz doctor` + manual removal in
+   System Settings. Code signing is the real fix (a non-goal here).
 
 ## Recommended sequencing
 
 1. **`tabz doctor`** first — read-only, immediately useful, and it's the engine `setup`
-   reuses. Validates the load-bearing assumption (#4) about TCC identity cheaply.
+   reuses. (Note: running it from a terminal does **not** cheaply validate the TCC-identity
+   assumption #4 — it gives a false positive; only an installed-daemon test against a
+   fresh-granted state reveals the truth. See #4.)
 2. **Cask `caveats`** — trivial, high-leverage; can ship as soon as `doctor`/`setup` names
    are settled (even before they're fully built, pointing at `tabz doctor`).
 3. **`tabz setup`** — the guided flow, built on `doctor`'s checks.
