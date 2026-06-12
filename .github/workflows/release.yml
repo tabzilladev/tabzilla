@@ -53,7 +53,7 @@ jobs:
           echo "sha256=$(echo "$OUT" | grep '^sha256=' | cut -d= -f2)" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: ${{ env.zip_name }}
           generate_release_notes: true
