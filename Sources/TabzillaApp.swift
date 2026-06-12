@@ -276,7 +276,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if result == .success, let window = focusedWindow {
             // AXUIElementCopyAttributeValue returns an AXUIElement for window attributes per the AX API contract.
-            guard let axWindow = window as? AXUIElement else { return nil }
+            let axWindow = window as! AXUIElement
             var titleValue: CFTypeRef?
             let titleResult = AXUIElementCopyAttributeValue(axWindow, kAXTitleAttribute as CFString, &titleValue)
 
