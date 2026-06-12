@@ -205,8 +205,12 @@ package: build ## Zip release app bundle and print SHA256; usage: make package V
 	@test -d "$(XCODE_BUILD_APP)" || (echo "Error: release app not found — run 'make build' first"; exit 1)
 	@mkdir -p build
 	@ZIP_NAME="$(APP_NAME)-$(V)-macos.zip"; \
-	zip -r -y "build/$$ZIP_NAME" "$(XCODE_BUILD_APP)" > /dev/null; \
-	SHA256=$$(shasum -a 256 "build/$$ZIP_NAME" | awk '{print $$1}'); \
+	ZIP_PATH="$$(pwd)/build/$$ZIP_NAME"; \
+	APP_DIR="$$(dirname "$(XCODE_BUILD_APP)")"; \
+	APP_NAME_ONLY="$$(basename "$(XCODE_BUILD_APP)")"; \
+	rm -f "$$ZIP_PATH"; \
+	(cd "$$APP_DIR" && zip -r -y "$$ZIP_PATH" "$$APP_NAME_ONLY" > /dev/null); \
+	SHA256=$$(shasum -a 256 "$$ZIP_PATH" | awk '{print $$1}'); \
 	echo "zip=build/$$ZIP_NAME"; \
 	echo "sha256=$$SHA256"
 
