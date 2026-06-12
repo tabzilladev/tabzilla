@@ -185,19 +185,36 @@ install: build ## Build, install to /Applications, and register with Launch Serv
 #     macOS then self-heals the default handler back to another installed browser.
 #     (A plain `lsregister -u` does NOT clear the persisted choice — the rebuild does.)
 #   - TCC: Accessibility + Automation (AppleEvents) grants.
+# The running daemon is killed FIRST — otherwise `rm -rf` orphans a daemon still
+# running from the deleted bundle, and a live process keeps the requirement
+# checks reading as satisfied. All matching processes are killed (e.g. an extra
+# instance launched from DerivedData), not just the installed one.
 # Leaves config files untouched. Gatekeeper note: the "Open Anyway" approval is keyed to
 # code identity and is not cleanly resettable here; a fresh `brew install` re-quarantines
 # and re-triggers it. (`make install` does its own bundle removal, so the fast dev
 # reinstall loop never needs this — use it when you want a true fresh-install state.)
+# TCC caveat: this app is adhoc-signed (no stable signing identity), so a
+# `tccutil reset <bundle-id>` often matches nothing and the grant survives.
+# `tccutil reset` exits 0 regardless, so we can't detect this — re-run `tabz doctor`
+# after, and if a grant persists, remove Tabzilla manually in System Settings ›
+# Privacy & Security › Accessibility / Automation.
 .PHONY: uninstall
 uninstall: ## Remove app + clear macOS default-browser/TCC state (fresh-install reset)
 	@echo "Uninstalling $(APP_NAME)..."
+	@if pgrep -f "$(APP_NAME).app/Contents/MacOS/$(APP_NAME)" >/dev/null 2>&1; then \
+		pkill -f "$(APP_NAME).app/Contents/MacOS/$(APP_NAME)"; \
+		sleep 1; \
+		echo "  ✓ stopped running daemon(s)"; \
+	else \
+		echo "  - daemon not running"; \
+	fi
 	@rm -rf "$(INSTALLED_APP)"
 	@$(LSREGISTER) -kill -r -domain local -domain user -domain system >/dev/null 2>&1 || true
 	@echo "  ✓ removed app and rebuilt Launch Services (stale default-browser binding dropped)"
-	@tccutil reset Accessibility $(BUNDLE_ID) >/dev/null 2>&1 && echo "  ✓ reset Accessibility" || echo "  - Accessibility (no entry)"
-	@tccutil reset AppleEvents $(BUNDLE_ID) >/dev/null 2>&1 && echo "  ✓ reset Automation (AppleEvents)" || echo "  - Automation (no entry)"
-	@echo "Uninstalled — default browser, Accessibility, and Automation cleared."
+	@tccutil reset Accessibility $(BUNDLE_ID) >/dev/null 2>&1 || true; echo "  ↻ requested Accessibility reset"
+	@tccutil reset AppleEvents $(BUNDLE_ID) >/dev/null 2>&1 || true; echo "  ↻ requested Automation (AppleEvents) reset"
+	@echo "Uninstalled — app removed, default browser cleared, TCC resets requested."
+	@echo "Note: TCC resets may not clear adhoc-signed grants — verify with 'tabz doctor'."
 	@echo "Note: Gatekeeper approval is not reset here — a fresh 'brew install' re-triggers it."
 
 .PHONY: register
