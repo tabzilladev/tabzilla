@@ -176,6 +176,8 @@ tabz status
 
 # Check the status of every requirement (permissions, default browser, daemon)
 tabz doctor
+tabz doctor --start  # start the daemon first if needed (Accessibility/Automation
+                     # can only be checked via the running daemon)
 tabz doctor --json   # machine-readable, for support/scripting
 
 # Guided setup: grant permissions and set Tabzilla as default browser
@@ -204,7 +206,9 @@ log show --predicate 'subsystem == "dev.tabzilla.Tabzilla"' --info --last 1h
 
 **Something not working?** Run `tabz doctor` first — it reports the status of
 every requirement and points you at the fix. `tabz setup` re-runs the guided
-walkthrough for any that need attention.
+walkthrough for any that need attention. (Accessibility and Automation can only
+be checked while the daemon is running — `doctor` shows `?` for them otherwise;
+use `tabz doctor --start` to start it first, or just launch Tabzilla.app.)
 
 **URLs don't open after reinstall** (Automation permission stale):
 

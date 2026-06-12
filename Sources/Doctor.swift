@@ -46,6 +46,49 @@ enum PermissionProbeClient {
     }
 }
 
+// MARK: - Daemon control (CLI side)
+
+/// Launching/locating the Tabzilla daemon from the CLI.
+enum DaemonControl {
+    static func isRunning() -> Bool {
+        (DaemonPID.get().map { DaemonPID.isRunning($0) }) ?? false
+    }
+
+    /// Launch the daemon via Launch Services and wait (up to `timeout`) for it to
+    /// write its PID file. Returns true once it's running.
+    ///
+    /// Critically, the daemon must be launched by Launch Services (`open`), NOT
+    /// spawned as a child of this CLI process — a child would inherit the
+    /// terminal's TCC responsible-process attribution, which is the exact bug the
+    /// daemon probe exists to avoid. `open` makes launchd the parent, so the
+    /// daemon carries Tabzilla's own TCC identity.
+    @discardableResult
+    static func ensureRunning(timeout: TimeInterval = 10) -> Bool {
+        if isRunning() { return true }
+
+        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: tabzillaBundleID) else {
+            return false
+        }
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = false
+        config.addsToRecentItems = false
+
+        let group = DispatchGroup()
+        group.enter()
+        NSWorkspace.shared.openApplication(at: appURL, configuration: config) { _, _ in
+            group.leave()
+        }
+        group.wait()
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if isRunning() { return true }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+        return isRunning()
+    }
+}
+
 // MARK: - Doctor engine
 
 /// Builds the `DoctorReport`. Accessibility and Automation are evaluated by the
@@ -180,7 +223,17 @@ extension CLI {
         @Flag(name: .long, help: "Output as JSON")
         var json = false
 
+        @Flag(name: .long, help: "Start the daemon first if needed (to check Accessibility/Automation)")
+        var start = false
+
         func run() throws {
+            // Accessibility/Automation can only be checked via the daemon. By
+            // default we leave the world untouched and report `?` when it's down;
+            // `--start` launches it (and leaves it running) for a complete read.
+            if start {
+                _ = DaemonControl.ensureRunning()
+            }
+
             let report = DoctorEngine.buildReport(configPath: config)
 
             if json {
@@ -225,16 +278,18 @@ extension CLI {
             printIntro()
 
             // Accessibility and Automation must be granted to the daemon (its TCC
-            // identity), and only the daemon can fire the prompts so they're
-            // attributed to Tabzilla rather than this terminal. If it's not
-            // running we can still do the default-browser step.
-            let daemonUp = (DaemonPID.get().map { DaemonPID.isRunning($0) }) ?? false
+            // identity), and only the daemon can fire those prompts so they're
+            // attributed to Tabzilla rather than this terminal. So make sure it's
+            // running first — and leave it running, since that's the state the
+            // user wants anyway (a stopped daemon doesn't route links).
+            let daemonUp = DaemonControl.ensureRunning()
             if daemonUp {
                 stepAccessibility()
                 stepAutomation()
             } else {
-                print("⚠ Tabzilla isn't running, so permission steps are skipped.")
-                print("  Launch Tabzilla.app (it runs in the background), then re-run `tabz setup`.")
+                print("⚠ Couldn't start Tabzilla, so permission steps are skipped.")
+                print("  Make sure Tabzilla.app is installed and you've cleared the Gatekeeper")
+                print("  \"Open Anyway\" block (see above), then re-run `tabz setup`.")
                 print("  Continuing with the default-browser step…")
                 print("")
             }
