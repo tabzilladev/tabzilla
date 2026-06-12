@@ -224,9 +224,19 @@ ci-status: .build/release-tools.stamp ## Show recent CI runs for the current bra
 	@echo "View on GitHub: $(REPO_URL)/actions"
 
 .PHONY: ci-watch
-ci-watch: .build/release-tools.stamp ## Watch the most recent CI run until it completes
-	@sleep 3
-	@RUN_ID=$$(gh run list --limit=1 --json databaseId -q '.[0].databaseId'); \
+ci-watch: .build/release-tools.stamp ## Watch the CI run for the current HEAD commit until it completes
+	@SHA=$$(git rev-parse HEAD); \
+	echo "Waiting for CI run at $$SHA..."; \
+	RUN_ID=""; \
+	for i in $$(seq 1 30); do \
+		RUN_ID=$$(gh run list --limit=20 --json databaseId,headSha -q "[.[] | select(.headSha == \"$$SHA\")] | .[0].databaseId // empty"); \
+		[ -n "$$RUN_ID" ] && break; \
+		sleep 2; \
+	done; \
+	if [ -z "$$RUN_ID" ]; then \
+		echo "Error: no CI run found for $$SHA after 60s" >&2; \
+		exit 1; \
+	fi; \
 	echo "CI run: $(REPO_URL)/actions/runs/$$RUN_ID"; \
 	gh run watch "$$RUN_ID" --exit-status
 
