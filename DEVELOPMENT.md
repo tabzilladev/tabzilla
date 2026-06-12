@@ -74,6 +74,8 @@ pull request targeting `main`, and can also be triggered manually:
 make ci-trigger                       # Trigger CI manually and watch
 make ci-trigger NOWATCH=1             # Trigger without watching
 gh workflow run ci.yml --ref branch   # Trigger CI on a specific branch
+make ci-watch                         # Watch the run for the current HEAD commit
+make ci-watch RUN=<id>                # Watch a specific run (e.g. after re-attaching)
 ```
 
 Or trigger from the GitHub Actions tab: select "CI" workflow → "Run workflow".
@@ -103,19 +105,39 @@ make release V=1.1.0 NOWATCH=1   # Release without waiting for CI
 ```
 
 Preconditions (checked before any changes are made):
-- Working tree is clean (no uncommitted or untracked files)
 - On the `main` branch
+- Local `main` is up to date with `origin/main` (fetched and compared; errors if behind or diverged)
+- Working tree is clean (no uncommitted or untracked files)
 - Version is valid semver (X.Y.Z) and differs from current
 - Tag does not already exist (unless `FORCE=1`)
 
-This validates preconditions, patches version numbers, commits the bump,
+This validates preconditions, verifies the build and tests pass locally
+(`make build test`) before tagging, patches version numbers, commits the bump,
 creates git tag `v1.1.0`, pushes it to origin, and watches CI until completion.
+The local verification guards against tagging a broken commit (which would
+otherwise fail the release workflow and require a `FORCE=1` re-release).
 The tag push triggers the release workflow which:
 1. Runs tests
 2. Builds the release app bundle (universal binary: arm64 + x86_64)
 3. Packages `Tabzilla.app` into `Tabzilla-1.1.0-macos.zip` with SHA256
 4. Creates a GitHub Release with the zip attached
 5. Updates the Homebrew Cask in `tabzilladev/homebrew-tap` (requires `HOMEBREW_TAP_TOKEN` Actions secret)
+
+#### Release Data Flow
+
+```
+make release V=X.Y.Z
+   └─ preconditions (incl. fetch guard)
+   └─ bump + commit + push main
+   └─ push tag vX.Y.Z ───────────────┐
+                                     ▼
+                         release.yml fires on tag
+   make ci-watch ◄──────── (watches THIS run by SHA)
+                                     │
+                         test → build → package → GitHub Release
+                                     │
+                         update-homebrew → cask bump
+```
 
 ## Development Workflow
 

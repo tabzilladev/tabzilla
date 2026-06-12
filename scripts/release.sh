@@ -47,6 +47,21 @@ if [[ "$CURRENT_BRANCH" != "main" ]]; then
   exit 1
 fi
 
+# --- Precondition: local main is up to date with origin/main ---
+echo "Fetching origin/main..."
+git -C "$REPO_ROOT" fetch origin main
+LOCAL_MAIN="$(git -C "$REPO_ROOT" rev-parse main)"
+REMOTE_MAIN="$(git -C "$REPO_ROOT" rev-parse origin/main)"
+BASE_MAIN="$(git -C "$REPO_ROOT" merge-base main origin/main)"
+if [[ "$LOCAL_MAIN" != "$REMOTE_MAIN" ]]; then
+  if [[ "$LOCAL_MAIN" == "$BASE_MAIN" ]]; then
+    echo "Error: local main is behind origin/main — run 'git pull' first" >&2
+  else
+    echo "Error: local main has diverged from origin/main — reconcile before releasing" >&2
+  fi
+  exit 1
+fi
+
 # --- Precondition: clean working tree ---
 if ! git -C "$REPO_ROOT" diff --quiet || ! git -C "$REPO_ROOT" diff --cached --quiet; then
   echo "Error: working tree has uncommitted changes" >&2
@@ -93,28 +108,30 @@ if [[ $DRY_RUN -eq 1 ]]; then
     echo "Dry run: re-release $VERSION (--force)"
     echo ""
     echo "  Local:"
-    echo "    1. Version already $VERSION, skip version bump"
-    echo "    2. Delete existing tag $TAG (local and remote)"
-    echo "    3. Create tag: $TAG"
-    echo "    4. Push tag to origin (no main push needed)"
+    echo "    1. Verify build and tests (make build test)"
+    echo "    2. Version already $VERSION, skip version bump"
+    echo "    3. Delete existing tag $TAG (local and remote)"
+    echo "    4. Create tag: $TAG"
+    echo "    5. Push tag to origin (no main push needed)"
   else
     echo "Dry run: release $VERSION (currently $CURRENT_VERSION)"
     echo ""
     echo "  Local:"
-    echo "    1. Patch version: $CURRENT_VERSION → $VERSION"
+    echo "    1. Verify build and tests (make build test)"
+    echo "    2. Patch version: $CURRENT_VERSION → $VERSION"
     echo "       - Sources/CLI.swift"
     echo "       - Tabzilla.xcodeproj/project.pbxproj"
-    echo "    2. Commit: \"$VERSION\""
-    echo "    3. Push main to origin"
-    echo "    4. Create tag: $TAG"
-    echo "    5. Push tag to origin"
+    echo "    3. Commit: \"$VERSION\""
+    echo "    4. Push main to origin"
+    echo "    5. Create tag: $TAG"
+    echo "    6. Push tag to origin"
   fi
   echo ""
   echo "  GitHub (triggered by tag push):"
-  echo "    6. CI: run tests, build release app bundle"
-  echo "    7. Package Tabzilla.app → Tabzilla-$VERSION-macos.zip (with SHA256)"
-  echo "    8. Create GitHub Release$(if [[ $FORCE -eq 1 ]]; then echo " (update existing if present)"; fi) with zip attached"
-  echo "    9. Update Homebrew Cask in tabzilladev/homebrew-tap"
+  echo "    1. CI: run tests, build release app bundle"
+  echo "    2. Package Tabzilla.app → Tabzilla-$VERSION-macos.zip (with SHA256)"
+  echo "    3. Create GitHub Release$(if [[ $FORCE -eq 1 ]]; then echo " (update existing if present)"; fi) with zip attached"
+  echo "    4. Update Homebrew Cask in tabzilladev/homebrew-tap"
   echo ""
   echo "No changes made."
   exit 0
@@ -122,7 +139,15 @@ fi
 
 # --- Execute ---
 
-# Step 1-3: bump version and commit (skip if --force and version already matches)
+# Step 0: verify the build and tests pass locally before tagging. Runs first so a
+# failure leaves the tree untouched (the bump only changes version strings, which do
+# not affect build/test outcomes). This guards against tagging a broken commit — the
+# tag-triggered release workflow runs the same checks, but failing fast here avoids a
+# failed release that needs a --force re-release to recover.
+echo "Verifying build and tests..."
+make -C "$REPO_ROOT" build test
+
+# Step: bump version and commit (skip if --force and version already matches)
 if [[ $VERSION_CHANGED -eq 1 ]]; then
   "$REPO_ROOT/scripts/set-version.sh" "$VERSION"
   git -C "$REPO_ROOT" add "$CLI_SWIFT" "$PBXPROJ"
