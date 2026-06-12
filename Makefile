@@ -224,18 +224,20 @@ ci-status: .build/release-tools.stamp ## Show recent CI runs for the current bra
 	@echo "View on GitHub: $(REPO_URL)/actions"
 
 .PHONY: ci-watch
-ci-watch: .build/release-tools.stamp ## Watch the CI run for the current HEAD commit until it completes
-	@SHA=$$(git rev-parse HEAD); \
-	echo "Waiting for CI run at $$SHA..."; \
-	RUN_ID=""; \
-	for i in $$(seq 1 30); do \
-		RUN_ID=$$(gh run list --limit=20 --json databaseId,headSha -q "[.[] | select(.headSha == \"$$SHA\")] | .[0].databaseId // empty"); \
-		[ -n "$$RUN_ID" ] && break; \
-		sleep 2; \
-	done; \
+ci-watch: .build/release-tools.stamp ## Watch a CI run until it completes; defaults to the current HEAD commit, override with RUN=<id>
+	@RUN_ID="$(RUN)"; \
 	if [ -z "$$RUN_ID" ]; then \
-		echo "Error: no CI run found for $$SHA after 60s" >&2; \
-		exit 1; \
+		SHA=$$(git rev-parse HEAD); \
+		echo "Waiting for CI run at $$SHA..."; \
+		for i in $$(seq 1 30); do \
+			RUN_ID=$$(gh run list --limit=20 --json databaseId,headSha -q "[.[] | select(.headSha == \"$$SHA\")] | .[0].databaseId // empty"); \
+			[ -n "$$RUN_ID" ] && break; \
+			sleep 2; \
+		done; \
+		if [ -z "$$RUN_ID" ]; then \
+			echo "Error: no CI run found for $$SHA after 60s" >&2; \
+			exit 1; \
+		fi; \
 	fi; \
 	echo "CI run: $(REPO_URL)/actions/runs/$$RUN_ID"; \
 	gh run watch "$$RUN_ID" --exit-status
