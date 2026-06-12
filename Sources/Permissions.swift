@@ -14,7 +14,7 @@ let tabzillaBundleID = "dev.tabzilla.Tabzilla"
 /// Tri-state (plus N/A) for a TCC permission. `notDetermined` distinguishes
 /// "never asked" (the system consent dialog can still be triggered) from
 /// `denied` (the user must toggle it manually — the dialog won't re-show).
-enum PermissionState: String, Encodable {
+enum PermissionState: String, Codable {
     case granted
     case denied
     case notDetermined
@@ -26,12 +26,14 @@ enum CheckStatus: String, Encodable {
     case pass // ✓
     case fail // ✗ — action required
     case notDetermined // ✗ — not yet granted, prompt available
+    case unknown // ? — couldn't be determined (e.g. daemon not running)
     case notApplicable // —
 
     var symbol: String {
         switch self {
         case .pass: "✓"
         case .fail, .notDetermined: "✗"
+        case .unknown: "?"
         case .notApplicable: "—"
         }
     }
@@ -146,6 +148,119 @@ enum Permissions {
 /// Pure comparison: does `bundleID` identify Tabzilla as the default browser?
 func isTabzillaDefaultBrowser(_ bundleID: String?) -> Bool {
     bundleID == tabzillaBundleID
+}
+
+// MARK: - Permission probe (cross-process)
+
+/// macOS attributes a CLI tool's TCC requests (Accessibility, Automation) to its
+/// *responsible* process — the terminal it was launched from — not to the tool's
+/// own code identity. So `AXIsProcessTrusted()` / `AEDeterminePermissionToAutomateTarget`
+/// called from `tabz` report the *terminal's* grants, not Tabzilla's, and a dev
+/// terminal that already has them makes every check a false positive.
+///
+/// To get the truth we must evaluate inside the daemon, which Launch Services
+/// launched as itself and which therefore carries Tabzilla's real TCC identity.
+/// This is a tiny file + SIGUSR1 request/response channel: the CLI writes a
+/// request, signals the daemon, and polls for a token-matched response. The
+/// daemon-side evaluation lives here (it's the same target as the daemon); the
+/// CLI-side client lives in Doctor.swift (it needs DaemonPID).
+enum PermissionProbe {
+    /// What the CLI is asking the daemon to evaluate. A `prompt` flag may ask the
+    /// daemon to fire the relevant system consent dialog (used by `tabz setup`).
+    struct Request: Codable {
+        /// Unique per request; echoed in the response and used in its filename so
+        /// the CLI never reads a stale response from an earlier call.
+        let token: String
+        let checkAccessibility: Bool
+        let promptAccessibility: Bool
+        /// Browser bundle IDs to check Automation permission for.
+        let automationTargets: [String]
+        let promptAutomation: Bool
+
+        init(
+            token: String = UUID().uuidString,
+            checkAccessibility: Bool = false,
+            promptAccessibility: Bool = false,
+            automationTargets: [String] = [],
+            promptAutomation: Bool = false
+        ) {
+            self.token = token
+            self.checkAccessibility = checkAccessibility
+            self.promptAccessibility = promptAccessibility
+            self.automationTargets = automationTargets
+            self.promptAutomation = promptAutomation
+        }
+    }
+
+    /// The daemon's answer, carrying its own (correct) TCC view.
+    struct Result: Codable {
+        let token: String
+        /// nil when the request didn't ask about Accessibility.
+        let accessibility: Bool?
+        /// Automation state keyed by target bundle ID.
+        let automation: [String: PermissionState]
+    }
+
+    // MARK: File locations
+
+    /// Same directory as the PID file (`~/Library/Application Support/Tabzilla`).
+    /// Kept independent of DaemonPID so this stays in the SPM-built target.
+    static var supportDir: String {
+        guard let dir = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        else {
+            return NSString("~/Library/Application Support/Tabzilla").expandingTildeInPath
+        }
+        return dir.appendingPathComponent("Tabzilla").path
+    }
+
+    static var requestPath: String {
+        (supportDir as NSString).appendingPathComponent("probe-request.json")
+    }
+
+    static func responsePath(token: String) -> String {
+        (supportDir as NSString).appendingPathComponent("probe-response-\(token).json")
+    }
+
+    // MARK: Daemon side
+
+    /// Evaluate a request using *this process's* TCC identity. Meaningful only
+    /// when run inside the daemon. May block briefly on a system consent dialog
+    /// when a `prompt` flag is set.
+    static func evaluate(_ request: Request) -> Result {
+        var accessibility: Bool?
+        if request.checkAccessibility {
+            accessibility = request.promptAccessibility
+                ? Permissions.promptAccessibility()
+                : Permissions.accessibilityGranted()
+        }
+
+        var automation: [String: PermissionState] = [:]
+        for target in request.automationTargets {
+            automation[target] = Permissions.automationState(
+                forTargetBundleID: target, prompt: request.promptAutomation
+            )
+        }
+
+        return Result(token: request.token, accessibility: accessibility, automation: automation)
+    }
+
+    /// Daemon-side handler for SIGUSR1: read the request file, evaluate it, and
+    /// write the token-matched response. Best-effort — any failure is silent
+    /// (the CLI times out and reports `unknown`).
+    static func serviceRequest() {
+        guard let data = FileManager.default.contents(atPath: requestPath),
+              let request = try? JSONDecoder().decode(Request.self, from: data)
+        else {
+            return
+        }
+        // Consume the request so a later stray signal doesn't re-run it.
+        try? FileManager.default.removeItem(atPath: requestPath)
+
+        let result = evaluate(request)
+        guard let out = try? JSONEncoder().encode(result) else { return }
+        try? out.write(to: URL(fileURLWithPath: responsePath(token: request.token)))
+    }
 }
 
 // MARK: - Doctor report

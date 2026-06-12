@@ -37,6 +37,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var sighupSource: DispatchSourceSignal?
     private var sigtermSource: DispatchSourceSignal?
+    private var sigusr1Source: DispatchSourceSignal?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // Register for URL events BEFORE didFinishLaunching
@@ -99,6 +100,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // DispatchSource requires signals to be ignored before installing a source handler
         signal(SIGHUP, SIG_IGN)
         signal(SIGTERM, SIG_IGN)
+        signal(SIGUSR1, SIG_IGN)
 
         // SIGHUP: reload config
         let hupSource = DispatchSource.makeSignalSource(signal: SIGHUP, queue: .main)
@@ -115,6 +117,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         termSource.resume()
         sigtermSource = termSource
+
+        // SIGUSR1: answer a permission probe with the daemon's TCC identity.
+        // The CLI can't check Accessibility/Automation itself — macOS attributes
+        // those to the launching terminal, not to Tabzilla — so it asks us.
+        let usr1Source = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: .main)
+        usr1Source.setEventHandler {
+            PermissionProbe.serviceRequest()
+        }
+        usr1Source.resume()
+        sigusr1Source = usr1Source
     }
 
     @objc private func handleGetURLEvent(
