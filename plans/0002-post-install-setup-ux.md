@@ -7,13 +7,27 @@ Date: 2026-06-12
 > macOS attributes a CLI tool's TCC requests to its *responsible process* — the
 > launching terminal — not to the tool's own code identity, so AX/Automation
 > checks run from `tabz` report the *terminal's* grants (a false positive on any
-> dev machine where the terminal already has them). The Accessibility and
-> Automation checks were therefore moved **into the daemon** (which Launch
-> Services runs as itself, carrying Tabzilla's real TCC identity), reached over a
-> file + `SIGUSR1` request/response probe (`PermissionProbe` /
-> `PermissionProbeClient`). When the daemon isn't running those checks report
-> `?` *unknown* rather than guessing. Default-browser / daemon / config checks
-> stay CLI-local (they don't go through TCC). See the updated #4 below.
+> dev machine where the terminal already has them).
+>
+> **Resolution: TCC disclaim re-exec.** `doctor` and `setup` re-spawn themselves
+> as their *own* responsible process via the `posix_spawn` disclaim SPI
+> (`responsibility_spawnattrs_setdisclaim`, wrapped in `Disclaim.m`, gated to
+> those two subcommands in `TabzillaApp.main`). The disclaimed invocation is
+> attributed to `dev.tabzilla.Tabzilla` — the *same* identity as the daemon — so
+> the local `AXIsProcessTrusted()` / `AEDeterminePermissionToAutomateTarget`
+> checks become accurate, and `setup`'s prompts grant the daemon directly. No
+> daemon-running requirement, no IPC.
+>
+> This was **verified empirically** (2026-06-12): a disclaimed re-exec of the
+> bundle binary shows a "Tabzilla" consent dialog and a single "Tabzilla" TCC
+> entry; granting it makes a disclaimed `doctor` read `✓` *with the daemon
+> stopped*, and the daemon shares the same grant. An earlier `SIGUSR1`-probe
+> design (have the daemon evaluate and answer over a file channel) was built,
+> worked, and was then **replaced** by disclaim because it required the daemon to
+> be running and added IPC. Trade-off: disclaim leans on a private SPI (no
+> stability promise, blocks Mac App Store — acceptable for Homebrew/Developer-ID
+> distribution; the daemon probe is the public-API fallback if it ever breaks).
+> See the updated #4 below.
 
 ## Problem
 
@@ -83,20 +97,19 @@ Checks:
 
 | Check | How | Source reference |
 |-------|-----|------------------|
-| Accessibility granted | `AXIsProcessTrusted()` (no-prompt variant), **evaluated in the daemon** via the probe | `Permissions.swift`; AX also used at `TabzillaApp.swift` |
-| Automation → Chrome | `AEDeterminePermissionToAutomateTarget(...)` with the Chrome bundle id, `askUserIfNeeded=false`, **evaluated in the daemon** | `Permissions.swift`; SB calls in `ChromeController.m` |
+| Accessibility granted | `AXIsProcessTrusted()` (no-prompt variant) — accurate because the command is disclaim-re-exec'd to Tabzilla's identity (see correction note) | `Permissions.swift`; AX also used at `TabzillaApp.swift` |
+| Automation → Chrome | `AEDeterminePermissionToAutomateTarget(...)` with the Chrome bundle id, `askUserIfNeeded=false` | `Permissions.swift`; SB calls in `ChromeController.m` |
 | Automation → Chrome Beta | same, `com.google.Chrome.beta` | " |
-| Default browser is Tabzilla | `NSWorkspace.urlForApplication(toOpen:)` (non-deprecated) compared to `dev.tabzilla.Tabzilla` — CLI-local, not TCC | `Permissions.swift` |
+| Default browser is Tabzilla | `NSWorkspace.urlForApplication(toOpen:)` (non-deprecated) compared to `dev.tabzilla.Tabzilla` | `Permissions.swift` |
 | Daemon running | existing PID check | `CLI.Status` / `DaemonPID` |
 | Config present | existing config search | `ConfigurationManager.findConfigPath()` |
 
-The AX and Automation rows are **probed from the daemon** (see the correction note
-at the top) — the CLI can't evaluate them truthfully itself. If the daemon isn't
-running they report `?` *unknown*.
+All checks run **locally in the CLI process**. The AX/Automation rows are accurate
+because `doctor` disclaim-re-execs itself to Tabzilla's own TCC identity (see the
+correction note at the top) — no daemon required.
 
-Output format: one line per check, `✓ / ✗ / ? / —`, with a one-line hint on
-failure or unknown. Support `--json` (mirrors `tabz dump` style) for scripting and
-bug reports.
+Output format: one line per check, `✓ / ✗ / —`, with a one-line hint on failure.
+Support `--json` (mirrors `tabz dump` style) for scripting and bug reports.
 
 Which browsers to check for Automation: derive from config (`browsersFromConfig`,
 extracted from `CLI.Dump` into `Config.swift` so it's shared and SPM-testable) so
@@ -243,9 +256,10 @@ equivalents in the README for users who want a full wipe. Keep this out of `tabz
 | File | Change |
 |------|--------|
 | `Sources/CLI.swift` | Register `Doctor` + `Setup` subcommands in `subcommands:`. `browsersFromConfig` moved out to `Config.swift`. |
-| `Sources/Doctor.swift` (new) | `DoctorEngine` (builds the report; AX/Automation via the daemon probe), `tabz doctor` + `tabz setup` commands, and the CLI-side `PermissionProbeClient` (writes request, sends `SIGUSR1`, polls for the response). SPM-excluded (depends on `DaemonPID`). |
-| `Sources/Permissions.swift` (new) | Wrap AX (`AXIsProcessTrusted[WithOptions]`), Automation (`AEDeterminePermissionToAutomateTarget`), default-browser read (`NSWorkspace.urlForApplication(toOpen:)`) + set (`LSSetDefaultHandlerForURLScheme`, verified from CLI w/ consent dialog) + System-Settings deep-link URLs. Also the `PermissionProbe` types + daemon-side `evaluate()`/`serviceRequest()` and the pure `DoctorReport` model. Unit-tested. |
-| `Sources/TabzillaApp.swift` | Handle `SIGUSR1` → `PermissionProbe.serviceRequest()` (daemon evaluates AX/Automation with its own TCC identity). (Component 4) On AX/AE failure, emit an actionable `os_log` hint, around `getSourceWindowTitle` and the Executor error paths. |
+| `Sources/Doctor.swift` (new) | `DoctorEngine` (builds the report; AX/Automation checked locally — accurate post-disclaim), `tabz doctor` + `tabz setup` commands. SPM-excluded (depends on `DaemonPID`). |
+| `Sources/Permissions.swift` (new) | Wrap AX (`AXIsProcessTrusted[WithOptions]`), Automation (`AEDeterminePermissionToAutomateTarget`), default-browser read (`NSWorkspace.urlForApplication(toOpen:)`) + set (`LSSetDefaultHandlerForURLScheme`, verified from CLI w/ consent dialog) + System-Settings deep-link URLs, plus the pure `DoctorReport` model. Unit-tested. |
+| `Sources/Disclaim.{h,m}` (new) | ObjC wrapper for the `posix_spawn` disclaim SPI (`responsibility_spawnattrs_setdisclaim`): `TabzillaDisclaimReexecIfNeeded()` re-spawns the process as its own TCC responsible process (idempotent via env sentinel; degrades gracefully on failure). Exposed via the bridging header. |
+| `Sources/TabzillaApp.swift` | In `main`, call `TabzillaDisclaimReexecIfNeeded()` for the `doctor`/`setup` subcommands only (so TCC is attributed to Tabzilla, not the terminal). (Component 4) On AX/AE failure, emit an actionable `os_log` hint, around `getSourceWindowTitle` and the Executor error paths. |
 | `Casks/tabzilla.rb` (tap repo) | Add `caveats` stanza (Component 3); extend `zap` to reset TCC + rebuild Launch Services (Component 5). Separate repo `tabzilladev/homebrew-tap`. |
 | `Makefile` | `uninstall` stops the daemon first, then removes the app, rebuilds Launch Services, and requests TCC resets (Component 5 dev-loop tool) — **done**. Honest "reset requested" wording since adhoc-signed grants may survive (#5). |
 | `README.md` / `DEVELOPMENT.md` | Replace the manual "set as default browser" steps with `tabz setup`; document `tabz doctor`; document full-wipe uninstall (`brew uninstall --zap`, or `make uninstall` for devs). |
@@ -283,22 +297,32 @@ equivalents in the README for users who want a full wipe. Keep this out of `tabz
    a CLI tool's TCC requests to its *responsible process* (the launching terminal), not to
    the tool's own code identity, even though it's the same binary as the daemon. A brand-new
    never-granted binary reports `AXIsProcessTrusted() == true` when run from a terminal that
-   has the grant. **Resolution:** AX/Automation are evaluated **in the daemon** (Launch
-   Services runs it as itself → real Tabzilla TCC identity) via a file + `SIGUSR1` probe
-   (`PermissionProbe`), and report `?` *unknown* when the daemon is down. This is the single
+   has the grant. **Resolution (final): disclaim re-exec.** `doctor`/`setup` re-spawn
+   themselves as their own responsible process (the `posix_spawn` disclaim SPI), which
+   attributes the AX/Automation checks and prompts to `dev.tabzilla.Tabzilla`, so the
+   *local* checks are accurate and no daemon is needed. (An interim `SIGUSR1` daemon-probe
+   was built first, then replaced — see the correction note at the top.) This is the single
    biggest deviation from the original design.
 5. **Unsigned + TCC.** The app is adhoc-signed, so TCC grants aren't reliably keyed to the
    bundle id: `tccutil reset <bundle-id>` often clears nothing and grants survive
    reinstall, and rebuilding can invalidate prior grants. `make uninstall` / the cask `zap`
    say "reset requested" (not "reset") and point users at `tabz doctor` + manual removal in
-   System Settings. Code signing is the real fix (a non-goal here).
+   System Settings. Code signing is the real fix (a non-goal here) — it would also give the
+   disclaim attribution a stable identity to key on (today it relies on the bundle id /
+   cdhash, verified working but fragile across rebuilds).
+6. **Disclaim uses private SPI.** `responsibility_spawnattrs_setdisclaim` (from
+   `spawn_private.h`) is unsupported: no stability guarantee and it blocks Mac App Store
+   distribution. Accepted because Tabzilla ships via Homebrew/Developer-ID and already
+   depends on undocumented surfaces (the deep-link URLs); the call is isolated in
+   `Disclaim.m` and degrades gracefully (logs + runs un-disclaimed) if the SPI ever fails.
+   The public-API fallback, if needed, is the daemon `SIGUSR1` probe (in git history).
 
 ## Recommended sequencing
 
 1. **`tabz doctor`** first — read-only, immediately useful, and it's the engine `setup`
-   reuses. (Note: running it from a terminal does **not** cheaply validate the TCC-identity
-   assumption #4 — it gives a false positive; only an installed-daemon test against a
-   fresh-granted state reveals the truth. See #4.)
+   reuses. (Lesson learned: don't "validate" the TCC-identity assumption #4 by eyeballing
+   `doctor` from a terminal — it gives a false positive. The decisive test is a *disclaimed*
+   read against a known fresh-granted state. See #4.)
 2. **Cask `caveats`** — trivial, high-leverage; can ship as soon as `doctor`/`setup` names
    are settled (even before they're fully built, pointing at `tabz doctor`).
 3. **`tabz setup`** — the guided flow, built on `doctor`'s checks.

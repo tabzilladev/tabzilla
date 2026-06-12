@@ -51,7 +51,6 @@ final class PermissionsTests: XCTestCase {
         XCTAssertEqual(CheckStatus.pass.symbol, "✓")
         XCTAssertEqual(CheckStatus.fail.symbol, "✗")
         XCTAssertEqual(CheckStatus.notDetermined.symbol, "✗")
-        XCTAssertEqual(CheckStatus.unknown.symbol, "?")
         XCTAssertEqual(CheckStatus.notApplicable.symbol, "—")
     }
 
@@ -60,75 +59,6 @@ final class PermissionsTests: XCTestCase {
         XCTAssertTrue(CheckStatus.notDetermined.needsAttention)
         XCTAssertFalse(CheckStatus.pass.needsAttention)
         XCTAssertFalse(CheckStatus.notApplicable.needsAttention)
-    }
-
-    // MARK: - DoctorReport with unknown status
-
-    func testDoctorReportUnknownIsNotAllClear() {
-        let report = DoctorReport(checks: [
-            .init(name: "Accessibility", status: .unknown, detail: "daemon down"),
-        ])
-        XCTAssertFalse(report.allClear)
-    }
-
-    func testDoctorReportTextLinesShowsHintForUnknown() {
-        let report = DoctorReport(checks: [
-            .init(name: "Accessibility", status: .unknown, detail: "start the daemon"),
-        ])
-        let text = report.textLines().joined(separator: "\n")
-        XCTAssertTrue(text.contains("?"))
-        XCTAssertTrue(text.contains("start the daemon"))
-    }
-
-    // MARK: - PermissionProbe
-
-    func testPermissionProbeRequestResultRoundTrip() throws {
-        let request = PermissionProbe.Request(
-            token: "tok-123",
-            checkAccessibility: true,
-            promptAccessibility: false,
-            automationTargets: ["com.google.Chrome"],
-            promptAutomation: true
-        )
-        let reqData = try JSONEncoder().encode(request)
-        let decodedReq = try JSONDecoder().decode(PermissionProbe.Request.self, from: reqData)
-        XCTAssertEqual(decodedReq.token, "tok-123")
-        XCTAssertTrue(decodedReq.checkAccessibility)
-        XCTAssertFalse(decodedReq.promptAccessibility)
-        XCTAssertEqual(decodedReq.automationTargets, ["com.google.Chrome"])
-        XCTAssertTrue(decodedReq.promptAutomation)
-
-        let result = PermissionProbe.Result(
-            token: "tok-123",
-            accessibility: true,
-            automation: ["com.google.Chrome": .granted, "com.google.Chrome.beta": .denied]
-        )
-        let resData = try JSONEncoder().encode(result)
-        let decodedRes = try JSONDecoder().decode(PermissionProbe.Result.self, from: resData)
-        XCTAssertEqual(decodedRes.token, "tok-123")
-        XCTAssertEqual(decodedRes.accessibility, true)
-        XCTAssertEqual(decodedRes.automation["com.google.Chrome"], .granted)
-        XCTAssertEqual(decodedRes.automation["com.google.Chrome.beta"], .denied)
-    }
-
-    func testPermissionProbeResponsePathUsesToken() {
-        let path = PermissionProbe.responsePath(token: "abc")
-        XCTAssertTrue(path.hasSuffix("probe-response-abc.json"))
-        XCTAssertTrue(path.contains("Tabzilla"))
-    }
-
-    func testPermissionProbeRequestDefaultTokenIsUnique() {
-        let first = PermissionProbe.Request()
-        let second = PermissionProbe.Request()
-        XCTAssertNotEqual(first.token, second.token)
-    }
-
-    func testPermissionProbeEvaluateOnlyReportsRequestedFields() {
-        // Accessibility not requested → result.accessibility is nil.
-        // No automation targets → empty automation map. (Pure: doesn't touch TCC.)
-        let result = PermissionProbe.evaluate(PermissionProbe.Request())
-        XCTAssertNil(result.accessibility)
-        XCTAssertTrue(result.automation.isEmpty)
     }
 
     // MARK: - DoctorReport

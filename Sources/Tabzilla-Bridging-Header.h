@@ -6,3 +6,4 @@
 //
 
 #import "ChromeController.h"
+#import "Disclaim.h"

@@ -14,6 +14,15 @@ struct TabzillaApp {
         // the app bundle.
         let hasUserArgs = args.count > 1 && !args[1].starts(with: "-NS") && !args[1].starts(with: "-Apple")
         if hasUserArgs {
+            // `doctor` and `setup` read/grant Accessibility & Automation, which
+            // macOS attributes to the *responsible process* — the launching
+            // terminal — not to Tabzilla, unless we disclaim. Re-exec these two
+            // (and only these) as our own responsible process so the checks and
+            // consent prompts are attributed to dev.tabzilla.Tabzilla. Other
+            // subcommands don't touch TCC and daemon mode must not be re-exec'd.
+            if ["doctor", "setup"].contains(args[1]) {
+                TabzillaDisclaimReexecIfNeeded()
+            }
             CLI.main()
         } else if args.count == 1, isatty(STDIN_FILENO) != 0 {
             // No arguments from an interactive terminal: print usage and exit.
@@ -37,7 +46,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var sighupSource: DispatchSourceSignal?
     private var sigtermSource: DispatchSourceSignal?
-    private var sigusr1Source: DispatchSourceSignal?
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         // Register for URL events BEFORE didFinishLaunching
@@ -100,7 +108,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // DispatchSource requires signals to be ignored before installing a source handler
         signal(SIGHUP, SIG_IGN)
         signal(SIGTERM, SIG_IGN)
-        signal(SIGUSR1, SIG_IGN)
 
         // SIGHUP: reload config
         let hupSource = DispatchSource.makeSignalSource(signal: SIGHUP, queue: .main)
@@ -117,16 +124,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         termSource.resume()
         sigtermSource = termSource
-
-        // SIGUSR1: answer a permission probe with the daemon's TCC identity.
-        // The CLI can't check Accessibility/Automation itself — macOS attributes
-        // those to the launching terminal, not to Tabzilla — so it asks us.
-        let usr1Source = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: .main)
-        usr1Source.setEventHandler {
-            PermissionProbe.serviceRequest()
-        }
-        usr1Source.resume()
-        sigusr1Source = usr1Source
     }
 
     @objc private func handleGetURLEvent(

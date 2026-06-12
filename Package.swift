@@ -35,6 +35,8 @@ let package = Package(
                 "ChromeController.m",
                 "ChromeProcessLocator.h",
                 "ChromeProcessLocator.m",
+                "Disclaim.h",
+                "Disclaim.m",
                 "Tabzilla-Bridging-Header.h",
                 "Executor.swift",
                 // These depend on Executor, so also excluded
