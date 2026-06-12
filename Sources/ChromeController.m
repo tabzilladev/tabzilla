@@ -7,6 +7,7 @@
 
 #import "ChromeController.h"
 #import "Chrome.h"
+#import "ChromeProcessLocator.h"
 #import <ScriptingBridge/ScriptingBridge.h>
 #import <os/log.h>
 
@@ -32,6 +33,14 @@ NSErrorDomain const TabzillaErrorDomain = @"dev.tabzilla.Tabzilla";
 }
 
 - (nullable ChromeApplication *)chromeAppForBundleId:(NSString *)bundleId {
+    // Prefer addressing a specific PID: when an automation Chrome (--user-data-dir) runs
+    // alongside the user's normal Chrome, bundle-id targeting resolves to an arbitrary
+    // one. The locator picks the intended instance and returns 0 when it can't decide, in
+    // which case we keep the original bundle-id behavior.
+    pid_t pid = [ChromeProcessLocator resolvePIDForBundleId:bundleId preferredUserDataDir:nil];
+    if (pid > 0) {
+        return (ChromeApplication *)[SBApplication applicationWithProcessIdentifier:pid];
+    }
     return (ChromeApplication *)[SBApplication applicationWithBundleIdentifier:bundleId];
 }
 

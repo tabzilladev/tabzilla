@@ -16,6 +16,7 @@
 		1100000000000008 /* BrowserSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200000000000010 /* BrowserSnapshot.swift */; };
 		1100000000000009 /* RouteResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200000000000011 /* RouteResolver.swift */; };
 		1100000000000007 /* ChromeController.m in Sources */ = {isa = PBXBuildFile; fileRef = 2200000000000009 /* ChromeController.m */; };
+		1100000000000012 /* ChromeProcessLocator.m in Sources */ = {isa = PBXBuildFile; fileRef = 220000000000000D /* ChromeProcessLocator.m */; };
 		1100000000000010 /* ArgumentParser in Frameworks */ = {isa = PBXBuildFile; productRef = 4400000000000001 /* ArgumentParser */; };
 		1100000000000011 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = 4400000000000002 /* Yams */; };
 /* End PBXBuildFile section */
@@ -35,6 +36,8 @@
 		220000000000000A /* ChromeController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChromeController.h; sourceTree = "<group>"; };
 		220000000000000B /* Chrome.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Chrome.h; sourceTree = "<group>"; };
 		220000000000000C /* Tabzilla-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Tabzilla-Bridging-Header.h"; sourceTree = "<group>"; };
+		220000000000000D /* ChromeProcessLocator.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChromeProcessLocator.m; sourceTree = "<group>"; };
+		220000000000000E /* ChromeProcessLocator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChromeProcessLocator.h; sourceTree = "<group>"; };
 		3300000000000001 /* Tabzilla.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tabzilla.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -71,6 +74,8 @@
 				2200000000000011 /* RouteResolver.swift */,
 				220000000000000A /* ChromeController.h */,
 				2200000000000009 /* ChromeController.m */,
+				220000000000000E /* ChromeProcessLocator.h */,
+				220000000000000D /* ChromeProcessLocator.m */,
 				220000000000000B /* Chrome.h */,
 				220000000000000C /* Tabzilla-Bridging-Header.h */,
 				6600000000000003 /* Resources */,
@@ -181,6 +186,7 @@
 				1100000000000008 /* BrowserSnapshot.swift in Sources */,
 				1100000000000009 /* RouteResolver.swift in Sources */,
 				1100000000000007 /* ChromeController.m in Sources */,
+				1100000000000012 /* ChromeProcessLocator.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
