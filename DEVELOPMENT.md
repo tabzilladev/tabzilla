@@ -41,6 +41,14 @@ make uninstall
 (`make install` removes the old bundle itself, so the fast reinstall loop
 doesn't need this — reach for it only when you want a clean-slate reset.)
 
+> **Run `make uninstall` before switching to a Homebrew-installed build.** A
+> dev build left in `~/Library/Developer/Xcode/DerivedData/.../Tabzilla.app`
+> and a `brew install --cask` copy in `/Applications` are two *distinct* bundles
+> with the same id, so Launch Services registers both — they show up as two
+> "Tabzilla" entries in the default-browser dropdown (and the wrong version may
+> win). `make uninstall` clears the DerivedData build (and stale LS records); end
+> users installing only via Homebrew never hit this.
+
 ## Build System
 
 Tabzilla uses Xcode for all builds because the project contains mixed Swift/Objective-C code (SPM doesn't support this). SPM is only used for running tests.
