@@ -1,6 +1,6 @@
 # Plan: Friendlier Post-Install Setup (CLI-driven walkthrough)
 
-Status: Implemented (PR #5)
+Status: Completed — shipped in v0.2.4 (PR #5; cask in tabzilladev/homebrew-tap#2)
 Date: 2026-06-12
 
 > **Implementation correction (2026-06-12):** risk/assumption #4 below was **wrong**.
