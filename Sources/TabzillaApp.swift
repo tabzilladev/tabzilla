@@ -14,6 +14,15 @@ struct TabzillaApp {
         // the app bundle.
         let hasUserArgs = args.count > 1 && !args[1].starts(with: "-NS") && !args[1].starts(with: "-Apple")
         if hasUserArgs {
+            // `doctor` and `setup` read/grant Accessibility & Automation, which
+            // macOS attributes to the *responsible process* — the launching
+            // terminal — not to Tabzilla, unless we disclaim. Re-exec these two
+            // (and only these) as our own responsible process so the checks and
+            // consent prompts are attributed to dev.tabzilla.Tabzilla. Other
+            // subcommands don't touch TCC and daemon mode must not be re-exec'd.
+            if ["doctor", "setup"].contains(args[1]) {
+                TabzillaDisclaimReexecIfNeeded()
+            }
             CLI.main()
         } else if args.count == 1, isatty(STDIN_FILENO) != 0 {
             // No arguments from an interactive terminal: print usage and exit.
@@ -263,6 +272,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func getSourceWindowTitle(for bundleId: String) -> String? {
+        // Accessibility is required to read window titles. Without it the AX calls
+        // below silently return nil and any rule that matches on sourceWindowTitle
+        // quietly won't fire — so surface an actionable hint instead.
+        guard Permissions.accessibilityGranted() else {
+            logger.error("Accessibility not granted — window-title rules won't match. Run `tabz setup`.")
+            return nil
+        }
+
         // Use Accessibility API - works for all apps including Electron apps like Slack
         guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first else {
             return nil

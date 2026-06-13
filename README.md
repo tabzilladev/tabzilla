@@ -25,19 +25,37 @@ A native macOS app that registers as your default browser and routes URLs to spe
 brew install --cask tabzilladev/tap/tabzilla
 ```
 
-### Set as default browser
+Tabzilla isn't code-signed yet, so on first launch macOS blocks it: open
+**System Settings → Privacy & Security**, scroll to **Security**, and click
+**"Open Anyway"** (you may need to try launching twice).
 
-After installing, set Tabzilla as your default browser:
+### Setup
 
-1. Open **System Settings** > **Desktop & Dock** > **Default web browser**
-2. Select **Tabzilla** from the dropdown
+Run the guided walkthrough — it checks each permission, explains why it's
+needed, opens the right System Settings pane, and makes Tabzilla your default
+browser:
+
+```bash
+tabz setup
+```
+
+It's safe to re-run anytime; completed steps are skipped. To check status
+without changing anything (handy for support or scripting, supports `--json`):
+
+```bash
+tabz doctor
+```
 
 ### Permissions
 
-Tabzilla requires two macOS permissions:
+`tabz setup` walks you through these, but for reference Tabzilla uses:
 
-- **Automation** - Required to control Chrome (window/tab management). macOS prompts on first use.
-- **Accessibility** - Required for `sourceWindowTitle` matching. Grant in **System Settings → Privacy & Security → Accessibility**.
+- **Accessibility** - Required for `sourceWindowTitle` matching (reading the
+  title of the window you clicked a link in).
+- **Automation** - Required to control Chrome (window/tab management). macOS
+  prompts on first use.
+- **Default web browser** - So macOS routes links to Tabzilla. Set via
+  `tabz setup`, or manually in **System Settings → Desktop & Dock → Default web browser**.
 
 ## Configuration
 
@@ -156,6 +174,13 @@ tabz test "https://github.com/org/repo/pull/123" \
 # Check daemon status and config
 tabz status
 
+# Check the status of every requirement (permissions, default browser, daemon)
+tabz doctor
+tabz doctor --json   # machine-readable, for support/scripting
+
+# Guided setup: grant permissions and set Tabzilla as default browser
+tabz setup
+
 # Dump full daemon state as JSON (for tools/agents)
 tabz dump
 
@@ -177,6 +202,10 @@ log stream --predicate 'subsystem == "dev.tabzilla.Tabzilla" AND category == "ex
 log show --predicate 'subsystem == "dev.tabzilla.Tabzilla"' --info --last 1h
 ```
 
+**Something not working?** Run `tabz doctor` first — it reports the status of
+every requirement and points you at the fix. `tabz setup` re-runs the guided
+walkthrough for any that need attention.
+
 **URLs don't open after reinstall** (Automation permission stale):
 
 1. Open **System Settings → Privacy & Security → Automation**
@@ -193,6 +222,23 @@ log show --predicate 'subsystem == "dev.tabzilla.Tabzilla"' --info --last 1h
 1. Open **System Settings → Privacy & Security → Accessibility**
 2. Ensure Tabzilla is listed and toggled ON
 3. If reinstalled, remove Tabzilla from the list and re-add it (permissions can become stale after reinstall)
+
+## Uninstall
+
+```bash
+brew uninstall --cask tabzilla
+```
+
+For a full wipe that also clears the state macOS keeps outside the app bundle —
+the default-browser binding plus Accessibility and Automation grants (which
+otherwise silently reappear if you reinstall) — use `--zap`:
+
+```bash
+brew uninstall --zap --cask tabzilla
+```
+
+(Developers building from source can get the same fresh-install reset with
+`make uninstall` — see [DEVELOPMENT.md](DEVELOPMENT.md).)
 
 ## Development
 

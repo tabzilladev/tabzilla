@@ -177,11 +177,80 @@ install: build ## Build, install to /Applications, and register with Launch Serv
 	@$(LSREGISTER) -f "$(INSTALLED_APP)"
 	@echo "Installed and registered $(APP_NAME)"
 
+# Removes the app AND the macOS state that otherwise survives outside the app bundle
+# (keyed by bundle id) and silently "reappears" on reinstall:
+#   - LaunchServices: the default http/https handler choice (the "default browser"
+#     setting) plus Tabzilla's URL-scheme capability registration. The app bundle is
+#     removed first, then a full `-kill -r` rebuild drops the stale Tabzilla bindings;
+#     macOS then self-heals the default handler back to another installed browser.
+#     (A plain `lsregister -u` does NOT clear the persisted choice — the rebuild does.)
+#   - DerivedData build products: any Tabzilla.app under DerivedData is removed too,
+#     because the LS rebuild re-discovers it and re-asserts the registration (and the
+#     stale default-browser binding) otherwise — the #1 reason uninstall "didn't take"
+#     on a dev machine. Only the built .app is removed, NOT the package caches, so a
+#     subsequent build doesn't re-fetch dependencies (use `distclean` for that).
+#   - TCC: Accessibility + Automation (AppleEvents) grants.
+# The running daemon is killed FIRST — otherwise `rm -rf` orphans a daemon still
+# running from the deleted bundle, and a live process keeps the requirement
+# checks reading as satisfied. All matching processes are killed (e.g. an extra
+# instance launched from DerivedData), not just the installed one.
+# Leaves config files untouched. Gatekeeper note: the "Open Anyway" approval is keyed to
+# code identity and is not cleanly resettable here; a fresh `brew install` re-quarantines
+# and re-triggers it. (`make install` does its own bundle removal, so the fast dev
+# reinstall loop never needs this — use it when you want a true fresh-install state.)
+# TCC caveat: this app is adhoc-signed (no stable signing identity), so a
+# `tccutil reset <bundle-id>` often matches nothing and the grant survives.
+# `tccutil reset` exits 0 regardless, so we can't detect this — re-run `tabz doctor`
+# after, and if a grant persists, remove Tabzilla manually in System Settings ›
+# Privacy & Security › Accessibility / Automation. Any Tabzilla*.app copies in
+# ~/.Trash are deleted too (only those, never the whole Trash) — while present
+# they keep LS resolving the default-browser binding to them, blocking self-heal.
 .PHONY: uninstall
-uninstall: ## Remove from /Applications
+uninstall: ## Remove app + clear macOS default-browser/TCC state (fresh-install reset)
 	@echo "Uninstalling $(APP_NAME)..."
+	@if pgrep -f "$(APP_NAME).app/Contents/MacOS/$(APP_NAME)" >/dev/null 2>&1; then \
+		pkill -f "$(APP_NAME).app/Contents/MacOS/$(APP_NAME)"; \
+		sleep 1; \
+		echo "  ✓ stopped running daemon(s)"; \
+	else \
+		echo "  - daemon not running"; \
+	fi
 	@rm -rf "$(INSTALLED_APP)"
-	@echo "Uninstalled"
+	@found=$$(find "$(DERIVED_DATA)" -path "*/$(APP_NAME)-*/Build/Products/*/$(APP_NAME).app" -type d 2>/dev/null); \
+	if [ -n "$$found" ]; then \
+		echo "$$found" | while read -r app; do rm -rf "$$app"; done; \
+		echo "  ✓ removed DerivedData build products (so the LS rebuild can't re-register them)"; \
+	else \
+		echo "  - no DerivedData build products"; \
+	fi
+	@# Drop build stamps too: we just deleted the artifacts they track, so a stale
+	@# stamp would make the next `make build`/`install` a silent no-op.
+	@rm -f .build/release.stamp .build/debug.stamp 2>/dev/null || true
+	@# Trashed copies keep LS resolving the default-browser binding to them. We
+	@# discover them via Spotlight (mdfind) because plain `find ~/.Trash` needs
+	@# Full Disk Access the shell may lack — but `rm` of a known path still works.
+	@# After removing, re-query mdfind and warn if any survive (e.g. truly no FDA).
+	@trashed=$$(mdfind -onlyin "$(HOME)/.Trash" "kMDItemCFBundleIdentifier == '$(BUNDLE_ID)'" 2>/dev/null); \
+	if [ -n "$$trashed" ]; then \
+		echo "$$trashed" | while read -r app; do rm -rf "$$app" 2>/dev/null || true; done; \
+		echo "  ✓ removed $(APP_NAME) copies from ~/.Trash (else LS keeps resolving the default-browser binding to them)"; \
+	else \
+		echo "  - no $(APP_NAME) copies in ~/.Trash"; \
+	fi
+	@$(LSREGISTER) -kill -r -domain local -domain user -domain system >/dev/null 2>&1 || true
+	@echo "  ✓ rebuilt Launch Services (stale default-browser binding dropped; macOS self-heals to another browser)"
+	@tccutil reset Accessibility $(BUNDLE_ID) >/dev/null 2>&1 || true; echo "  ↻ requested Accessibility reset"
+	@tccutil reset AppleEvents $(BUNDLE_ID) >/dev/null 2>&1 || true; echo "  ↻ requested Automation (AppleEvents) reset"
+	@echo "Uninstalled — app + build products removed, default browser cleared, TCC resets requested."
+	@echo "Note: TCC resets may not clear adhoc-signed grants — verify with 'tabz doctor'."
+	@echo "Note: Gatekeeper approval is not reset here — a fresh 'brew install' re-triggers it."
+	@# Spotlight may lag, so give it a moment before the final check.
+	@sleep 1; \
+	leftover=$$(mdfind -onlyin "$(HOME)/.Trash" "kMDItemCFBundleIdentifier == '$(BUNDLE_ID)'" 2>/dev/null); \
+	if [ -n "$$leftover" ]; then \
+		echo "⚠ Copies still in ~/.Trash (couldn't delete — grant the terminal Full Disk Access, or empty the Trash):"; \
+		echo "$$leftover" | sed 's/^/    /'; \
+	fi
 
 .PHONY: register
 register: ## Re-register with Launch Services (useful after manual copy)

@@ -12,7 +12,7 @@ struct CLI: ParsableCommand {
         commandName: "tabz",
         abstract: "URL routing daemon for macOS",
         version: appVersion,
-        subcommands: [Open.self, Test.self, Status.self, Dump.self, Reload.self, Stop.self],
+        subcommands: [Open.self, Test.self, Status.self, Doctor.self, Setup.self, Dump.self, Reload.self, Stop.self],
         defaultSubcommand: nil
     )
 }
@@ -338,21 +338,9 @@ extension CLI {
             print(jsonString)
         }
 
-        /// Extract unique browser bundle IDs from config
-        private func getBrowsersFromConfig(_ config: Config) -> Set<String> {
-            var browsers = Set<String>()
-            browsers.insert(config.defaults.browser)
-            for rule in config.rules {
-                if let browser = rule.browser {
-                    browsers.insert(browser)
-                }
-            }
-            return browsers
-        }
-
         /// Get browser state for all browsers referenced in config
         private func getBrowserState(for config: Config) -> [BrowserState] {
-            let browsers = getBrowsersFromConfig(config)
+            let browsers = browsersFromConfig(config)
             let chromeController = ChromeController.shared()
 
             return browsers.sorted().map { bundleId in

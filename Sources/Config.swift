@@ -59,6 +59,21 @@ struct Config: Codable {
     }
 }
 
+/// Extract the unique set of browser bundle IDs referenced by a config
+/// (the default browser plus any per-rule overrides). Used to scope
+/// browser-specific work — e.g. which browsers to check for Automation
+/// permission — to whatever the user actually routes to.
+func browsersFromConfig(_ config: Config) -> Set<String> {
+    var browsers = Set<String>()
+    browsers.insert(config.defaults.browser)
+    for rule in config.rules {
+        if let browser = rule.browser {
+            browsers.insert(browser)
+        }
+    }
+    return browsers
+}
+
 // MARK: - Configuration Manager
 
 enum ConfigurationManager {

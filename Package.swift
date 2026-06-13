@@ -35,11 +35,15 @@ let package = Package(
                 "ChromeController.m",
                 "ChromeProcessLocator.h",
                 "ChromeProcessLocator.m",
+                "Disclaim.h",
+                "Disclaim.m",
                 "Tabzilla-Bridging-Header.h",
                 "Executor.swift",
                 // These depend on Executor, so also excluded
                 "CLI.swift",
-                "TabzillaApp.swift"
+                "TabzillaApp.swift",
+                // Depends on DaemonPID (in CLI.swift) and the CLI command tree
+                "Doctor.swift"
             ],
             resources: [
                 .process("Resources/DefaultConfig.yaml")
